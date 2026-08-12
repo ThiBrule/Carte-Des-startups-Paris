@@ -6,9 +6,6 @@
 <title>Carte des startups — Paris</title>
 <meta name="description" content="Découvrez sur une carte interactive de Paris les startups référencées : localisation, secteur d'activité et lien vers chaque site.">
 
-<!-- Leaflet (carte, sans clé API) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <!-- Polices Snapdesk -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,11 +25,10 @@
 
   /* ---------- Layout plein écran ---------- */
   .map-app{position:relative;width:100%;height:100vh;min-height:520px;overflow:hidden}
-  #map{position:absolute;inset:0;z-index:1;background:var(--sage)}
-  .leaflet-container{font-family:var(--body)}
+  #map{position:absolute;inset:0;z-index:1;background:#e9edec}
 
   /* ---------- Barre de recherche ---------- */
-  .search{position:absolute;z-index:600;top:18px;left:18px;width:min(360px,calc(100% - 36px))}
+  .search{position:absolute;z-index:6;top:18px;left:18px;width:min(360px,calc(100% - 36px))}
   .search-box{display:flex;align-items:center;gap:10px;background:var(--panel);
     border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
   .search-box svg{flex:none;color:var(--muted)}
@@ -53,7 +49,7 @@
   .no-result{padding:14px 15px;color:var(--muted);font-size:14px}
 
   /* ---------- Marqueurs (logos) ---------- */
-  .pin{position:relative;width:46px;height:46px;transform:translateY(-4px)}
+  .pin{position:relative;width:46px;height:46px;cursor:pointer}
   .pin .disc{width:46px;height:46px;border-radius:50%;background:#fff;border:3px solid var(--pink);
     box-shadow:0 4px 12px rgba(17,17,17,.22);overflow:hidden;display:flex;align-items:center;justify-content:center;
     transition:transform .12s ease, border-color .12s ease}
@@ -65,7 +61,7 @@
   .pin.is-active .tip{border-color:var(--ink)}
 
   /* ---------- Panneau de droite ---------- */
-  .panel{position:absolute;z-index:700;top:0;right:0;height:100%;width:min(380px,88%);
+  .panel{position:absolute;z-index:7;top:0;right:0;height:100%;width:min(380px,88%);
     background:var(--panel);box-shadow:-14px 0 40px rgba(17,17,17,.18);
     transform:translateX(105%);transition:transform .32s cubic-bezier(.22,.61,.36,1);
     display:flex;flex-direction:column}
@@ -93,13 +89,17 @@
   .panel .p-cta:hover{background:var(--pink);color:var(--ink)}
 
   /* Compteur discret */
-  .count{position:absolute;z-index:500;left:18px;bottom:24px;background:var(--panel);border:1px solid var(--line);
+  .count{position:absolute;z-index:5;left:18px;bottom:24px;background:var(--panel);border:1px solid var(--line);
     border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:var(--shadow)}
   .count b{color:var(--pink)}
 
-  /* Zoom Leaflet un peu plus doux */
-  .leaflet-control-zoom a{border-radius:8px!important}
-  .leaflet-bar{border:none!important;box-shadow:var(--shadow)!important}
+  /* Message si la clé API manque */
+  .apikey-warn{position:absolute;inset:0;z-index:8;display:none;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:28px;background:#e9edec;color:var(--ink)}
+  .apikey-warn.show{display:flex}
+  .apikey-warn h2{font-family:var(--title);font-size:22px;margin:0 0 10px}
+  .apikey-warn p{max-width:460px;color:var(--muted);margin:0 0 6px;font-size:14px;line-height:1.5}
+  .apikey-warn code{background:#fff;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:13px}
 
   /* ---------- Mobile : panneau = feuille du bas ---------- */
   @media (max-width:640px){
@@ -147,21 +147,37 @@
   </aside>
 
   <div class="count" id="count"></div>
+
+  <div class="apikey-warn" id="apiWarn">
+    <h2>Clé Google Maps manquante</h2>
+    <p>Renseignez votre clé dans <code>index.html</code> : constante <code>GOOGLE_MAPS_API_KEY</code>.</p>
+    <p>Obtenez-la sur <b>console.cloud.google.com</b> → activez « Maps JavaScript API » → Identifiants → Créer une clé API.</p>
+  </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJ5eGU+9rf8jvKmZ8ymJl1H+STHUg=" crossorigin=""></script>
 <script>
 /* =====================================================================
-   DONNÉES DES STARTUPS  —  À REMPLACER PAR VOTRE LISTE
+   1) CLÉ GOOGLE MAPS  —  À RENSEIGNER
    ---------------------------------------------------------------------
-   Chaque startup :
-     name    : nom affiché
-     sector  : secteur d'activité (ex. "Fintech", "Santé"…)
-     url     : lien du site (avec https://)
-     logo    : URL d'un logo (png/svg). Laissez "" -> initiales affichées.
-     lat,lng : coordonnées GPS.  Astuce : clic droit sur Google Maps
-               -> les 2 nombres affichés sont "lat, lng".
+   Créez-la sur https://console.cloud.google.com :
+     • activez l'API « Maps JavaScript API »
+     • Identifiants → Créer une clé API
+     • (recommandé) restreignez la clé à votre domaine
+   MAP_ID : laissez "DEMO_MAP_ID" pour tester. Pour la prod, créez un
+   « ID de carte » (Map ID) gratuit dans la console → styles personnalisés.
+   ===================================================================== */
+const GOOGLE_MAPS_API_KEY = "VOTRE_CLE_API";
+const MAP_ID              = "DEMO_MAP_ID";
+
+/* =====================================================================
+   2) DONNÉES DES STARTUPS  —  À REMPLACER PAR VOTRE LISTE
+   ---------------------------------------------------------------------
+     name   : nom affiché
+     sector : secteur d'activité (badge)
+     url    : lien du site (avec https://)
+     logo   : URL d'un logo (png/svg). Laissez "" -> initiales affichées.
+     lat,lng: coordonnées GPS. Astuce : clic droit sur Google Maps
+              -> les 2 nombres affichés sont "lat, lng".
    ===================================================================== */
 const STARTUPS = [
   { name:"Alan",        sector:"Assurance santé", url:"https://alan.com",
@@ -178,141 +194,144 @@ const STARTUPS = [
     logo:"https://logo.clearbit.com/swile.co",       lat:48.8600, lng:2.3760 },
 ];
 
-/* Centre & zoom initial (Paris) */
-const PARIS = [48.8566, 2.3522];
-const ZOOM  = 12.4;
+const PARIS = { lat:48.8566, lng:2.3522 };
 
-/* --------------------------------------------------------------------- */
-const map = L.map('map', { zoomControl:true, scrollWheelZoom:true, minZoom:11, maxZoom:18 })
-             .setView(PARIS, ZOOM);
-map.zoomControl.setPosition('bottomright');
-
-/* Fond de carte clair et sobre (CARTO — gratuit, sans clé) */
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  subdomains:'abcd', maxZoom:19
-}).addTo(map);
-
+/* ---------- Utilitaires logo / initiales ---------- */
 function initials(name){
   return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
 }
-function logoImg(s, cls){
+function logoNode(s, cls){
   if(s.logo){
-    return `<img class="${cls}" src="${s.logo}" alt="${s.name}"
-      onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'${cls} initials',textContent:'${initials(s.name)}'}))">`;
+    const img = document.createElement('img');
+    img.className = cls; img.src = s.logo; img.alt = s.name;
+    img.onerror = ()=>{ const d=document.createElement('div'); d.className=cls+' initials'; d.textContent=initials(s.name); img.replaceWith(d); };
+    return img;
   }
-  return `<div class="${cls} initials">${initials(s.name)}</div>`;
+  const d = document.createElement('div'); d.className = cls+' initials'; d.textContent = initials(s.name);
+  return d;
+}
+function pinNode(s, i){
+  const wrap = document.createElement('div');
+  wrap.className = 'pin'; wrap.dataset.i = i;
+  const disc = document.createElement('div'); disc.className='disc'; disc.appendChild(logoNode(s,''));
+  const tip  = document.createElement('div'); tip.className='tip';
+  wrap.appendChild(disc); wrap.appendChild(tip);
+  return wrap;
 }
 
-/* --- Création des marqueurs --- */
-const markers = [];
-STARTUPS.forEach((s, i)=>{
-  const html = `<div class="pin" data-i="${i}"><div class="disc">${logoImg(s,'')}</div><div class="tip"></div></div>`;
-  const icon = L.divIcon({ className:'pin-wrap', html, iconSize:[46,46], iconAnchor:[23,50], popupAnchor:[0,-48] });
-  const m = L.marker([s.lat, s.lng], { icon, title:s.name, riseOnHover:true }).addTo(map);
-  m.on('click', ()=> select(i, true));
-  markers.push(m);
-});
-
-/* Ajuste la vue pour englober tous les points */
-if(markers.length){
-  const group = L.featureGroup(markers);
-  map.fitBounds(group.getBounds().pad(0.18));
+/* ---------- Chargement de l'API Google Maps ---------- */
+function loadGoogleMaps(){
+  return new Promise((resolve, reject)=>{
+    if(!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY==="VOTRE_CLE_API"){
+      document.getElementById('apiWarn').classList.add('show'); reject(new Error('no-key')); return;
+    }
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&v=weekly&libraries=marker&loading=async&callback=__initMap`;
+    s.async = true; s.onerror = reject;
+    window.__initMap = resolve;
+    document.head.appendChild(s);
+  });
 }
 
-/* --- Panneau de détails --- */
-const panel   = document.getElementById('panel');
-const pClose  = document.getElementById('pClose');
-let activeIndex = -1;
+let map, markersByIndex = [];
+
+async function init(){
+  try{ await loadGoogleMaps(); }catch(e){ return; }
+
+  const { Map } = await google.maps.importLibrary("maps");
+  const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+
+  map = new Map(document.getElementById('map'), {
+    center: PARIS, zoom: 12, mapId: MAP_ID,
+    disableDefaultUI: false, mapTypeControl: false, streetViewControl: false,
+    fullscreenControl: false, zoomControl: true, clickableIcons: false,
+    gestureHandling: "greedy",
+  });
+
+  const bounds = new google.maps.LatLngBounds();
+  STARTUPS.forEach((s, i)=>{
+    const content = pinNode(s, i);
+    const marker = new AdvancedMarkerElement({
+      map, position:{lat:s.lat, lng:s.lng}, content, title:s.name, gmpClickable:true,
+    });
+    content.addEventListener('click', ()=> select(i, true));
+    marker.addListener('gmp-click', ()=> select(i, true));
+    markersByIndex[i] = marker;
+    bounds.extend({lat:s.lat, lng:s.lng});
+  });
+  if(STARTUPS.length){ map.fitBounds(bounds, 90); }
+
+  document.getElementById('count').innerHTML = `<b>${STARTUPS.length}</b> startups référencées`;
+}
+
+/* ---------- Panneau de détails ---------- */
+const panel  = document.getElementById('panel');
 
 function setActivePin(i){
   document.querySelectorAll('.pin').forEach(p=>p.classList.remove('is-active'));
-  if(i>-1){
-    const el = document.querySelector('.pin[data-i="'+i+'"]');
-    if(el) el.classList.add('is-active');
-  }
+  if(i>-1){ const el = document.querySelector('.pin[data-i="'+i+'"]'); if(el) el.classList.add('is-active'); }
 }
-
 function openPanel(s){
-  document.getElementById('pLogo').outerHTML =
-    (s.logo ? `<img id="pLogo" class="p-logo" src="${s.logo}" alt="${s.name}"
-        onerror="this.outerHTML='<div id=\\'pLogo\\' class=\\'p-logo initials\\'>${initials(s.name)}</div>'">`
-            : `<div id="pLogo" class="p-logo initials">${initials(s.name)}</div>`);
+  const holder = document.getElementById('pLogo');
+  holder.replaceWith(Object.assign(logoNode(s,'p-logo'),{id:'pLogo'}));
   document.getElementById('pName').textContent   = s.name;
   document.getElementById('pSector').textContent = s.sector || '—';
   const host = s.url.replace(/^https?:\/\//,'').replace(/\/$/,'');
   document.getElementById('pLinkRow').innerHTML  = `<a href="${s.url}" target="_blank" rel="noopener">${host}</a>`;
   document.getElementById('pCta').href           = s.url;
-  panel.classList.add('open');
-  panel.setAttribute('aria-hidden','false');
+  panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
 }
 function closePanel(){
-  panel.classList.remove('open');
-  panel.setAttribute('aria-hidden','true');
+  panel.classList.remove('open'); panel.setAttribute('aria-hidden','true');
   setActivePin(-1);
-  activeIndex = -1;
 }
-pClose.addEventListener('click', closePanel);
+document.getElementById('pClose').addEventListener('click', closePanel);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePanel(); });
 
-/* Sélection d'une startup (depuis marqueur ou recherche) */
+/* Sélection d'une startup (marqueur ou recherche) */
 function select(i, fromMarker){
   const s = STARTUPS[i];
-  activeIndex = i;
   setActivePin(i);
   openPanel(s);
-  const targetZoom = Math.max(map.getZoom(), 14.5);
-  map.flyTo([s.lat, s.lng], targetZoom, { duration:.7 });
+  if(map){
+    map.panTo({lat:s.lat, lng:s.lng});
+    if(map.getZoom() < 14) map.setZoom(15);
+    // décale la carte pour que le point ne passe pas sous le panneau (desktop)
+    if(window.innerWidth > 640){ setTimeout(()=> map.panBy(170, 0), 60); }
+  }
   if(!fromMarker){ closeResults(); document.getElementById('q').value = s.name; toggleClear(); }
 }
 
-/* --- Recherche --- */
-const q       = document.getElementById('q');
-const qClear  = document.getElementById('qClear');
-const results = document.getElementById('results');
-
+/* ---------- Recherche ---------- */
+const q = document.getElementById('q'), qClear = document.getElementById('qClear'), results = document.getElementById('results');
 function toggleClear(){ qClear.classList.toggle('show', q.value.length>0); }
 function closeResults(){ results.classList.remove('show'); results.innerHTML=''; }
-
+function searchList(term){
+  const t = term.trim().toLowerCase();
+  return STARTUPS.map((s,i)=>({s,i})).filter(({s})=> s.name.toLowerCase().includes(t) || (s.sector||'').toLowerCase().includes(t));
+}
 function renderResults(list){
   if(!q.value.trim()){ closeResults(); return; }
-  if(!list.length){
-    results.innerHTML = `<div class="no-result">Aucune startup trouvée.</div>`;
-    results.classList.add('show'); return;
-  }
-  results.innerHTML = list.map(({s,i})=>`
-    <div class="result" data-i="${i}">
-      ${logoImg(s,'r-logo')}
-      <div class="r-txt">
-        <div class="r-name">${s.name}</div>
-        <div class="r-sector">${s.sector||''}</div>
-      </div>
-    </div>`).join('');
-  results.classList.add('show');
-  results.querySelectorAll('.result').forEach(el=>{
-    el.addEventListener('click', ()=> select(+el.dataset.i, false));
+  results.innerHTML = '';
+  if(!list.length){ results.innerHTML = `<div class="no-result">Aucune startup trouvée.</div>`; results.classList.add('show'); return; }
+  list.forEach(({s,i})=>{
+    const row = document.createElement('div'); row.className='result'; row.dataset.i=i;
+    row.appendChild(logoNode(s,'r-logo'));
+    const txt = document.createElement('div'); txt.className='r-txt';
+    txt.innerHTML = `<div class="r-name">${s.name}</div><div class="r-sector">${s.sector||''}</div>`;
+    row.appendChild(txt);
+    row.addEventListener('click', ()=> select(i, false));
+    results.appendChild(row);
   });
+  results.classList.add('show');
 }
-
-function search(term){
-  const t = term.trim().toLowerCase();
-  return STARTUPS.map((s,i)=>({s,i}))
-    .filter(({s})=> s.name.toLowerCase().includes(t) || (s.sector||'').toLowerCase().includes(t));
-}
-
-q.addEventListener('input', ()=>{ toggleClear(); renderResults(search(q.value)); });
-q.addEventListener('focus', ()=>{ if(q.value.trim()) renderResults(search(q.value)); });
-q.addEventListener('keydown', e=>{
-  if(e.key==='Enter'){
-    const first = results.querySelector('.result');
-    if(first) select(+first.dataset.i, false);
-  }
-});
+q.addEventListener('input', ()=>{ toggleClear(); renderResults(searchList(q.value)); });
+q.addEventListener('focus', ()=>{ if(q.value.trim()) renderResults(searchList(q.value)); });
+q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const f=results.querySelector('.result'); if(f) select(+f.dataset.i, false); }});
 qClear.addEventListener('click', ()=>{ q.value=''; toggleClear(); closeResults(); q.focus(); });
 document.addEventListener('click', e=>{ if(!e.target.closest('.search')) closeResults(); });
 
-/* Compteur */
-document.getElementById('count').innerHTML = `<b>${STARTUPS.length}</b> startups référencées`;
+init();
 </script>
 </body>
 </html>
