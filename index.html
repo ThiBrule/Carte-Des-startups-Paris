@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carte des startups — Paris</title>
+<meta name="description" content="Découvrez sur une carte interactive de Paris les startups référencées : localisation, secteur d'activité et lien vers chaque site.">
+
+<!-- Leaflet (carte, sans clé API) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<!-- Polices Snapdesk -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --pink:#E590A1; --sage:#A9BCB7; --ink:#111111;
+    --bg:#f4f6f5; --panel:#ffffff; --line:#e7e9e8; --muted:#6b7280;
+    --radius:16px; --shadow:0 10px 40px rgba(17,17,17,.16);
+    --title:"Josefin Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --body:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:var(--body);color:var(--ink);background:var(--bg)}
+
+  /* ---------- Layout plein écran ---------- */
+  .map-app{position:relative;width:100%;height:100vh;min-height:520px;overflow:hidden}
+  #map{position:absolute;inset:0;z-index:1;background:var(--sage)}
+  .leaflet-container{font-family:var(--body)}
+
+  /* ---------- Barre de recherche ---------- */
+  .search{position:absolute;z-index:600;top:18px;left:18px;width:min(360px,calc(100% - 36px))}
+  .search-box{display:flex;align-items:center;gap:10px;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
+  .search-box svg{flex:none;color:var(--muted)}
+  .search-box input{border:0;outline:0;width:100%;font-family:var(--body);font-size:15px;color:var(--ink);background:transparent}
+  .search-box input::placeholder{color:var(--muted)}
+  .search-clear{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px;display:none}
+  .search-clear.show{display:block}
+  .results{margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);overflow:hidden;max-height:min(52vh,420px);overflow-y:auto;display:none}
+  .results.show{display:block}
+  .result{display:flex;align-items:center;gap:11px;padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--line)}
+  .result:last-child{border-bottom:0}
+  .result:hover,.result.active{background:#faf5f6}
+  .result .r-logo{width:34px;height:34px;border-radius:9px;object-fit:contain;background:#fff;border:1px solid var(--line);flex:none}
+  .result .r-txt{min-width:0}
+  .result .r-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .result .r-sector{font-size:12px;color:var(--muted)}
+  .no-result{padding:14px 15px;color:var(--muted);font-size:14px}
+
+  /* ---------- Marqueurs (logos) ---------- */
+  .pin{position:relative;width:46px;height:46px;transform:translateY(-4px)}
+  .pin .disc{width:46px;height:46px;border-radius:50%;background:#fff;border:3px solid var(--pink);
+    box-shadow:0 4px 12px rgba(17,17,17,.22);overflow:hidden;display:flex;align-items:center;justify-content:center;
+    transition:transform .12s ease, border-color .12s ease}
+  .pin .disc img{width:100%;height:100%;object-fit:contain;padding:5px}
+  .pin .disc .initials{font-family:var(--title);font-weight:700;font-size:16px;color:var(--ink)}
+  .pin .tip{position:absolute;left:50%;bottom:-6px;width:12px;height:12px;background:#fff;border-right:3px solid var(--pink);
+    border-bottom:3px solid var(--pink);transform:translateX(-50%) rotate(45deg)}
+  .pin:hover .disc, .pin.is-active .disc{transform:scale(1.08);border-color:var(--ink)}
+  .pin.is-active .tip{border-color:var(--ink)}
+
+  /* ---------- Panneau de droite ---------- */
+  .panel{position:absolute;z-index:700;top:0;right:0;height:100%;width:min(380px,88%);
+    background:var(--panel);box-shadow:-14px 0 40px rgba(17,17,17,.18);
+    transform:translateX(105%);transition:transform .32s cubic-bezier(.22,.61,.36,1);
+    display:flex;flex-direction:column}
+  .panel.open{transform:translateX(0)}
+  .panel .p-close{position:absolute;top:14px;right:14px;z-index:2;border:0;background:rgba(255,255,255,.85);
+    width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:20px;line-height:1;color:var(--ink);
+    box-shadow:0 2px 8px rgba(17,17,17,.15)}
+  .panel .p-head{padding:34px 26px 22px;background:linear-gradient(180deg,#fbeef1 0%,#fff 100%);border-bottom:1px solid var(--line)}
+  .panel .p-logo{width:88px;height:88px;border-radius:20px;background:#fff;border:1px solid var(--line);
+    box-shadow:0 6px 18px rgba(17,17,17,.10);object-fit:contain;padding:10px;margin-bottom:16px}
+  .panel .p-logo.initials{display:flex;align-items:center;justify-content:center;font-family:var(--title);font-weight:700;font-size:34px}
+  .panel .p-name{font-family:var(--title);font-weight:700;font-size:26px;margin:0 0 10px;line-height:1.15}
+  .panel .badge{display:inline-flex;align-items:center;gap:7px;background:var(--sage);color:#173430;
+    font-weight:600;font-size:13px;padding:6px 12px;border-radius:999px}
+  .panel .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:#173430}
+  .panel .p-body{padding:22px 26px;overflow-y:auto;flex:1}
+  .panel .p-row{margin-bottom:18px}
+  .panel .p-row .k{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600;margin-bottom:5px}
+  .panel .p-row .v{font-size:15px;color:var(--ink)}
+  .panel .p-row .v a{color:var(--pink);text-decoration:none;font-weight:600;word-break:break-all}
+  .panel .p-row .v a:hover{text-decoration:underline}
+  .panel .p-cta{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;
+    background:var(--ink);color:#fff;text-decoration:none;font-family:var(--title);font-weight:600;font-size:16px;
+    padding:15px;border-radius:12px;transition:.15s}
+  .panel .p-cta:hover{background:var(--pink);color:var(--ink)}
+
+  /* Compteur discret */
+  .count{position:absolute;z-index:500;left:18px;bottom:24px;background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:var(--shadow)}
+  .count b{color:var(--pink)}
+
+  /* Zoom Leaflet un peu plus doux */
+  .leaflet-control-zoom a{border-radius:8px!important}
+  .leaflet-bar{border:none!important;box-shadow:var(--shadow)!important}
+
+  /* ---------- Mobile : panneau = feuille du bas ---------- */
+  @media (max-width:640px){
+    .panel{top:auto;bottom:0;right:0;width:100%;height:min(72%,540px);
+      border-radius:22px 22px 0 0;transform:translateY(105%)}
+    .panel.open{transform:translateY(0)}
+    .panel .p-head{padding-top:26px}
+    .count{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="map-app">
+  <div id="map"></div>
+
+  <!-- Recherche -->
+  <div class="search">
+    <div class="search-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <input id="q" type="text" placeholder="Rechercher une startup…" autocomplete="off">
+      <button class="search-clear" id="qClear" aria-label="Effacer">×</button>
+    </div>
+    <div class="results" id="results"></div>
+  </div>
+
+  <!-- Panneau de détails -->
+  <aside class="panel" id="panel" aria-hidden="true">
+    <button class="p-close" id="pClose" aria-label="Fermer">×</button>
+    <div class="p-head">
+      <div id="pLogo"></div>
+      <h2 class="p-name" id="pName"></h2>
+      <span class="badge" id="pSector"></span>
+    </div>
+    <div class="p-body">
+      <div class="p-row">
+        <div class="k">Site web</div>
+        <div class="v" id="pLinkRow"></div>
+      </div>
+      <a class="p-cta" id="pCta" target="_blank" rel="noopener">
+        Visiter le site
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"></path><path d="M7 7h10v10"></path></svg>
+      </a>
+    </div>
+  </aside>
+
+  <div class="count" id="count"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJ5eGU+9rf8jvKmZ8ymJl1H+STHUg=" crossorigin=""></script>
+<script>
+/* =====================================================================
+   DONNÉES DES STARTUPS  —  À REMPLACER PAR VOTRE LISTE
+   ---------------------------------------------------------------------
+   Chaque startup :
+     name    : nom affiché
+     sector  : secteur d'activité (ex. "Fintech", "Santé"…)
+     url     : lien du site (avec https://)
+     logo    : URL d'un logo (png/svg). Laissez "" -> initiales affichées.
+     lat,lng : coordonnées GPS.  Astuce : clic droit sur Google Maps
+               -> les 2 nombres affichés sont "lat, lng".
+   ===================================================================== */
+const STARTUPS = [
+  { name:"Alan",        sector:"Assurance santé", url:"https://alan.com",
+    logo:"https://logo.clearbit.com/alan.com",       lat:48.8709, lng:2.3620 },
+  { name:"Doctolib",    sector:"HealthTech",      url:"https://www.doctolib.fr",
+    logo:"https://logo.clearbit.com/doctolib.fr",    lat:48.8918, lng:2.2380 },
+  { name:"Qonto",       sector:"Fintech",         url:"https://qonto.com",
+    logo:"https://logo.clearbit.com/qonto.com",      lat:48.8666, lng:2.3630 },
+  { name:"Back Market", sector:"E-commerce",      url:"https://www.backmarket.fr",
+    logo:"https://logo.clearbit.com/backmarket.fr",  lat:48.8656, lng:2.3510 },
+  { name:"PayFit",      sector:"HR Tech",         url:"https://payfit.com",
+    logo:"https://logo.clearbit.com/payfit.com",     lat:48.8845, lng:2.3210 },
+  { name:"Swile",       sector:"Fintech / RH",    url:"https://www.swile.co",
+    logo:"https://logo.clearbit.com/swile.co",       lat:48.8600, lng:2.3760 },
+];
+
+/* Centre & zoom initial (Paris) */
+const PARIS = [48.8566, 2.3522];
+const ZOOM  = 12.4;
+
+/* --------------------------------------------------------------------- */
+const map = L.map('map', { zoomControl:true, scrollWheelZoom:true, minZoom:11, maxZoom:18 })
+             .setView(PARIS, ZOOM);
+map.zoomControl.setPosition('bottomright');
+
+/* Fond de carte clair et sobre (CARTO — gratuit, sans clé) */
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains:'abcd', maxZoom:19
+}).addTo(map);
+
+function initials(name){
+  return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+}
+function logoImg(s, cls){
+  if(s.logo){
+    return `<img class="${cls}" src="${s.logo}" alt="${s.name}"
+      onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'${cls} initials',textContent:'${initials(s.name)}'}))">`;
+  }
+  return `<div class="${cls} initials">${initials(s.name)}</div>`;
+}
+
+/* --- Création des marqueurs --- */
+const markers = [];
+STARTUPS.forEach((s, i)=>{
+  const html = `<div class="pin" data-i="${i}"><div class="disc">${logoImg(s,'')}</div><div class="tip"></div></div>`;
+  const icon = L.divIcon({ className:'pin-wrap', html, iconSize:[46,46], iconAnchor:[23,50], popupAnchor:[0,-48] });
+  const m = L.marker([s.lat, s.lng], { icon, title:s.name, riseOnHover:true }).addTo(map);
+  m.on('click', ()=> select(i, true));
+  markers.push(m);
+});
+
+/* Ajuste la vue pour englober tous les points */
+if(markers.length){
+  const group = L.featureGroup(markers);
+  map.fitBounds(group.getBounds().pad(0.18));
+}
+
+/* --- Panneau de détails --- */
+const panel   = document.getElementById('panel');
+const pClose  = document.getElementById('pClose');
+let activeIndex = -1;
+
+function setActivePin(i){
+  document.querySelectorAll('.pin').forEach(p=>p.classList.remove('is-active'));
+  if(i>-1){
+    const el = document.querySelector('.pin[data-i="'+i+'"]');
+    if(el) el.classList.add('is-active');
+  }
+}
+
+function openPanel(s){
+  document.getElementById('pLogo').outerHTML =
+    (s.logo ? `<img id="pLogo" class="p-logo" src="${s.logo}" alt="${s.name}"
+        onerror="this.outerHTML='<div id=\\'pLogo\\' class=\\'p-logo initials\\'>${initials(s.name)}</div>'">`
+            : `<div id="pLogo" class="p-logo initials">${initials(s.name)}</div>`);
+  document.getElementById('pName').textContent   = s.name;
+  document.getElementById('pSector').textContent = s.sector || '—';
+  const host = s.url.replace(/^https?:\/\//,'').replace(/\/$/,'');
+  document.getElementById('pLinkRow').innerHTML  = `<a href="${s.url}" target="_blank" rel="noopener">${host}</a>`;
+  document.getElementById('pCta').href           = s.url;
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden','false');
+}
+function closePanel(){
+  panel.classList.remove('open');
+  panel.setAttribute('aria-hidden','true');
+  setActivePin(-1);
+  activeIndex = -1;
+}
+pClose.addEventListener('click', closePanel);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePanel(); });
+
+/* Sélection d'une startup (depuis marqueur ou recherche) */
+function select(i, fromMarker){
+  const s = STARTUPS[i];
+  activeIndex = i;
+  setActivePin(i);
+  openPanel(s);
+  const targetZoom = Math.max(map.getZoom(), 14.5);
+  map.flyTo([s.lat, s.lng], targetZoom, { duration:.7 });
+  if(!fromMarker){ closeResults(); document.getElementById('q').value = s.name; toggleClear(); }
+}
+
+/* --- Recherche --- */
+const q       = document.getElementById('q');
+const qClear  = document.getElementById('qClear');
+const results = document.getElementById('results');
+
+function toggleClear(){ qClear.classList.toggle('show', q.value.length>0); }
+function closeResults(){ results.classList.remove('show'); results.innerHTML=''; }
+
+function renderResults(list){
+  if(!q.value.trim()){ closeResults(); return; }
+  if(!list.length){
+    results.innerHTML = `<div class="no-result">Aucune startup trouvée.</div>`;
+    results.classList.add('show'); return;
+  }
+  results.innerHTML = list.map(({s,i})=>`
+    <div class="result" data-i="${i}">
+      ${logoImg(s,'r-logo')}
+      <div class="r-txt">
+        <div class="r-name">${s.name}</div>
+        <div class="r-sector">${s.sector||''}</div>
+      </div>
+    </div>`).join('');
+  results.classList.add('show');
+  results.querySelectorAll('.result').forEach(el=>{
+    el.addEventListener('click', ()=> select(+el.dataset.i, false));
+  });
+}
+
+function search(term){
+  const t = term.trim().toLowerCase();
+  return STARTUPS.map((s,i)=>({s,i}))
+    .filter(({s})=> s.name.toLowerCase().includes(t) || (s.sector||'').toLowerCase().includes(t));
+}
+
+q.addEventListener('input', ()=>{ toggleClear(); renderResults(search(q.value)); });
+q.addEventListener('focus', ()=>{ if(q.value.trim()) renderResults(search(q.value)); });
+q.addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    const first = results.querySelector('.result');
+    if(first) select(+first.dataset.i, false);
+  }
+});
+qClear.addEventListener('click', ()=>{ q.value=''; toggleClear(); closeResults(); q.focus(); });
+document.addEventListener('click', e=>{ if(!e.target.closest('.search')) closeResults(); });
+
+/* Compteur */
+document.getElementById('count').innerHTML = `<b>${STARTUPS.length}</b> startups référencées`;
+</script>
+</body>
+</html>
