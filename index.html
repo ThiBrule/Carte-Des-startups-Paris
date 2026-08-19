@@ -252,10 +252,10 @@ async function init(){
   STARTUPS.forEach((s, i)=>{
     const content = pinNode(s, i);
     const marker = new AdvancedMarkerElement({
-      map, position:{lat:s.lat, lng:s.lng}, content, title:s.name, gmpClickable:true,
+      map, position:{lat:s.lat, lng:s.lng}, content, title:s.name,
     });
+    content.style.cursor = 'pointer';
     content.addEventListener('click', ()=> select(i, true));
-    marker.addListener('gmp-click', ()=> select(i, true));
     markersByIndex[i] = marker;
     bounds.extend({lat:s.lat, lng:s.lng});
   });
@@ -266,14 +266,16 @@ async function init(){
 
 /* ---------- Panneau de détails ---------- */
 const panel  = document.getElementById('panel');
+let activeIndex = -1;
 
 function setActivePin(i){
   document.querySelectorAll('.pin').forEach(p=>p.classList.remove('is-active'));
   if(i>-1){ const el = document.querySelector('.pin[data-i="'+i+'"]'); if(el) el.classList.add('is-active'); }
 }
 function openPanel(s){
-  const holder = document.getElementById('pLogo');
-  holder.replaceWith(Object.assign(logoNode(s,'p-logo'),{id:'pLogo'}));
+  const holder = document.getElementById('pLogo');   // conteneur stable : on vide + on remplit
+  holder.innerHTML = '';
+  holder.appendChild(logoNode(s, 'p-logo'));
   document.getElementById('pName').textContent   = s.name;
   document.getElementById('pSector').textContent = s.sector || '—';
   const host = s.url.replace(/^https?:\/\//,'').replace(/\/$/,'');
@@ -284,21 +286,37 @@ function openPanel(s){
 function closePanel(){
   panel.classList.remove('open'); panel.setAttribute('aria-hidden','true');
   setActivePin(-1);
+  activeIndex = -1;
 }
 document.getElementById('pClose').addEventListener('click', closePanel);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePanel(); });
 
 /* Sélection d'une startup (marqueur ou recherche) */
 function select(i, fromMarker){
+  // déjà ouverte sur cette startup -> rien à faire
+  if(i === activeIndex && panel.classList.contains('open')) return;
   const s = STARTUPS[i];
+  const switching = panel.classList.contains('open') && activeIndex !== i;
+  activeIndex = i;
   setActivePin(i);
-  openPanel(s);
-  if(map){
-    map.panTo({lat:s.lat, lng:s.lng});
-    if(map.getZoom() < 14) map.setZoom(15);
-    // décale la carte pour que le point ne passe pas sous le panneau (desktop)
-    if(window.innerWidth > 640){ setTimeout(()=> map.panBy(170, 0), 60); }
+
+  const reveal = ()=>{
+    openPanel(s);
+    if(map){
+      map.panTo({lat:s.lat, lng:s.lng});
+      if(map.getZoom() < 14) map.setZoom(15);
+      // décale la carte pour que le point ne passe pas sous le panneau (desktop)
+      if(window.innerWidth > 640){ setTimeout(()=> map.panBy(170, 0), 60); }
+    }
+  };
+
+  if(switching){
+    panel.classList.remove('open');   // ferme la fiche précédente...
+    setTimeout(reveal, 200);          // ...puis ouvre la nouvelle
+  } else {
+    reveal();
   }
+
   if(!fromMarker){ closeResults(); document.getElementById('q').value = s.name; toggleClear(); }
 }
 
