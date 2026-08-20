@@ -252,7 +252,7 @@ function logoNode(s, cls){
     img.loading = 'lazy'; img.decoding = 'async';   // ne charge le logo que si besoin
     const toInitials = ()=>{ const d=document.createElement('div'); d.className=(cls+' initials').trim(); d.textContent=initials(s.name); img.replaceWith(d); };
     img.onerror = toInitials;                                   // logo introuvable (404) -> initiales
-    img.onload  = ()=>{ if(!img.naturalWidth || img.naturalWidth <= 32) toInitials(); }; // globe/placeholder minuscule -> initiales
+    img.onload  = ()=>{ if(img.naturalWidth && img.naturalWidth <= 16) toInitials(); }; // globe/placeholder minuscule -> initiales (seuil bas pour ne pas toucher les vrais logos)
     img.src = s.logo;
     return img;
   }
