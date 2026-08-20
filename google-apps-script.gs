@@ -78,11 +78,19 @@ function reply_(e, obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function num_(v) { // gère les nombres et le format français "48,86"
+  if (typeof v === 'number') return v;
+  if (v === '' || v == null) return NaN;
+  return parseFloat(String(v).replace(',', '.'));
+}
+
 /** Le site récupère ici les entreprises validées. */
 function doGet(e) {
   var sheet = getSheet_();
   var c = cols_(sheet);
   var out = [];
+  var geocodedThisCall = 0;
+  var CAP = 10; // au plus 10 géocodages par chargement (évite les dépassements de temps)
   var lastRow = sheet.getLastRow();
   if (lastRow > 1) {
     var values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
@@ -93,31 +101,63 @@ function doGet(e) {
       var name = c.entreprise > 0 ? r[c.entreprise - 1] : '';
       if (!name) continue;
 
-      var lat = c.lat > 0 ? r[c.lat - 1] : '';
-      var lng = c.lng > 0 ? r[c.lng - 1] : '';
-      if ((lat === '' || lng === '') && c.adresse > 0) {
+      var lat = num_(c.lat > 0 ? r[c.lat - 1] : '');
+      var lng = num_(c.lng > 0 ? r[c.lng - 1] : '');
+      if ((isNaN(lat) || isNaN(lng)) && c.adresse > 0 && geocodedThisCall < CAP) {
         var g = geocode_(r[c.adresse - 1]);
+        geocodedThisCall++;
         if (g) {
           lat = g.lat; lng = g.lng;
           if (c.lat > 0) sheet.getRange(i + 2, c.lat).setValue(lat); // cache
           if (c.lng > 0) sheet.getRange(i + 2, c.lng).setValue(lng);
         }
       }
-      var latN = typeof lat === 'number' ? lat : parseFloat(lat);
-      var lngN = typeof lng === 'number' ? lng : parseFloat(lng);
-      if (isNaN(latN) || isNaN(lngN)) continue; // pas de coordonnées -> on saute
+      if (isNaN(lat) || isNaN(lng)) continue; // pas encore de coordonnées -> on saute
 
       out.push({
         name:   name,
         sector: c.secteur > 0 ? r[c.secteur - 1] : '',
         url:    c.site    > 0 ? r[c.site - 1]    : '',
         logo:   c.logo    > 0 ? r[c.logo - 1]    : '',
-        lat:    latN,
-        lng:    lngN
+        lat:    lat,
+        lng:    lng
       });
     }
   }
   return reply_(e, out);
+}
+
+/**
+ * À LANCER UNE FOIS depuis l'éditeur Apps Script (menu ▷ Exécuter) après un gros
+ * import : géocode toutes les lignes validées qui n'ont pas encore de Lat/Lng.
+ * S'arrête avant la limite de temps ; relance-la si besoin jusqu'à ce que tout soit rempli.
+ */
+function geocodeAll() {
+  var sheet = getSheet_();
+  var c = cols_(sheet);
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  var start = new Date().getTime();
+  var done = 0, skipped = 0;
+  for (var i = 0; i < values.length; i++) {
+    if (new Date().getTime() - start > 280000) break; // ~4 min 40, marge sous la limite de 6 min
+    var r = values[i];
+    var validated = c.validation > 0 && r[c.validation - 1] === true;
+    if (!validated) continue;
+    if (c.entreprise > 0 && !r[c.entreprise - 1]) continue;
+    var hasLat = !isNaN(num_(c.lat > 0 ? r[c.lat - 1] : ''));
+    var hasLng = !isNaN(num_(c.lng > 0 ? r[c.lng - 1] : ''));
+    if (hasLat && hasLng) { skipped++; continue; }
+    if (c.adresse <= 0) continue;
+    var g = geocode_(r[c.adresse - 1]);
+    if (g) {
+      if (c.lat > 0) sheet.getRange(i + 2, c.lat).setValue(g.lat);
+      if (c.lng > 0) sheet.getRange(i + 2, c.lng).setValue(g.lng);
+      done++;
+    }
+  }
+  Logger.log('Géocodage : ' + done + ' ajoutées, ' + skipped + ' déjà présentes.');
 }
 
 /** Le formulaire du site ajoute une entreprise (validation décochée par défaut). */
