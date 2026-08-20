@@ -102,6 +102,22 @@
     background:var(--ink);color:#fff;text-decoration:none;font-family:var(--title);font-weight:600;font-size:16px;padding:15px;border-radius:12px;transition:.15s}
   .panel .p-cta:hover{background:var(--pink);color:var(--ink)}
 
+  /* ---------- Modale « Ajouter mon entreprise » ---------- */
+  .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(17,17,17,.45)}
+  .modal.open{display:flex}
+  .modal-card{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);width:min(460px,100%);max-height:92vh;overflow-y:auto;padding:28px;position:relative}
+  .modal-card h2{font-family:var(--title);font-size:24px;margin:0 0 6px}
+  .modal-sub{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 20px}
+  .modal-close{position:absolute;top:16px;right:16px;border:0;background:#f0f2f1;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:19px;line-height:1;color:var(--ink)}
+  .modal-card label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:14px}
+  .modal-card input{display:block;width:100%;margin-top:6px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-family:var(--body);font-size:14px;color:var(--ink)}
+  .modal-card input:focus{outline:none;border-color:var(--pink)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .modal-ok{display:none;text-align:center;padding:14px 0 4px}
+  .modal-ok.show{display:block}
+  .modal-ok .tick{width:52px;height:52px;border-radius:50%;background:var(--sage);color:#173430;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px}
+  .btn-sending{opacity:.6;pointer-events:none}
+
   /* ---------- Mobile ---------- */
   @media (max-width:860px){
     .layout{flex-direction:column;height:auto;min-height:100vh}
@@ -110,6 +126,7 @@
     .stage{height:64vh;min-height:420px}
     .panel{top:auto;bottom:0;right:0;width:100%;height:min(72%,520px);border-radius:22px 22px 0 0;transform:translateY(105%)}
     .panel.open{transform:translateY(0)}
+    .grid2{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -165,37 +182,65 @@
   </div>
 </div>
 
+<!-- ======== Modale ajouter ======== -->
+<div class="modal" id="addModal" aria-hidden="true">
+  <div class="modal-card">
+    <button class="modal-close" id="addClose" aria-label="Fermer">×</button>
+    <div id="addFormWrap">
+      <h2>Ajouter mon entreprise</h2>
+      <p class="modal-sub">Renseignez votre entreprise : elle sera ajoutée à la carte après validation par notre équipe.</p>
+      <form id="addForm">
+        <div class="grid2">
+          <label>Prénom *<input name="prenom" required></label>
+          <label>Nom *<input name="nom" required></label>
+        </div>
+        <label>Nom de l'entreprise *<input name="entreprise" required placeholder="Ex. Ma Startup"></label>
+        <label>Secteur d'activité *<input name="secteur" required placeholder="Ex. Finance, Santé…"></label>
+        <label>Site web *<input name="url" type="url" required placeholder="https://…"></label>
+        <label>Adresse à Paris *<input name="adresse" required placeholder="12 rue de Rivoli, 75004 Paris"></label>
+        <label>Logo — lien vers l'image (optionnel)<input name="logo" type="url" placeholder="https://…/logo.png"></label>
+        <label>Votre email *<input name="email" type="email" required placeholder="vous@entreprise.com"></label>
+        <button type="submit" class="cta-add" id="addSubmit" style="margin:6px 0 0">Envoyer ma demande</button>
+      </form>
+    </div>
+    <div class="modal-ok" id="addOk">
+      <div class="tick">✓</div>
+      <h2>Merci !</h2>
+      <p class="modal-sub">Votre demande a bien été envoyée. Votre entreprise apparaîtra sur la carte après validation.</p>
+      <button class="cta-add" id="addOkClose" style="margin:6px 0 0">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =====================================================================
-   1) CLÉ GOOGLE MAPS + EMAIL DE RÉCEPTION DES DEMANDES
+   CONFIGURATION
+   ---------------------------------------------------------------------
+   GOOGLE_MAPS_API_KEY : clé Google Maps (déjà en place).
+   DATA_ENDPOINT       : URL de l'application web Apps Script (finit par /exec).
+                         -> tant qu'elle est vide, la carte affiche les
+                            exemples ci-dessous. Une fois renseignée, la carte
+                            lit en direct les entreprises VALIDÉES du Google Sheet.
    ===================================================================== */
 const GOOGLE_MAPS_API_KEY = "AIzaSyA5e4Pq8XxrnI6BwCwQPw3ZCzPvR9OBF0Y";
 const MAP_ID              = "DEMO_MAP_ID";
-// Lien du formulaire externe (Google Form ou Notion) ouvert par « Ajouter mon entreprise »
-const ADD_FORM_URL        = "https://forms.gle/VOTRE_LIEN";
+const DATA_ENDPOINT       = "";   // <-- colle ici l'URL /exec de ton Apps Script
 
-/* =====================================================================
-   2) DONNÉES DES STARTUPS  —  À REMPLACER PAR VOTRE LISTE
-   ===================================================================== */
-const STARTUPS = [
-  { name:"Alan",        sector:"Assurance santé",     url:"https://alan.com",
-    logo:"https://logo.clearbit.com/alan.com",       lat:48.8709, lng:2.3620 },
-  { name:"Doctolib",    sector:"Santé",               url:"https://www.doctolib.fr",
-    logo:"https://logo.clearbit.com/doctolib.fr",    lat:48.8918, lng:2.2380 },
-  { name:"Qonto",       sector:"Finance",             url:"https://qonto.com",
-    logo:"https://logo.clearbit.com/qonto.com",      lat:48.8666, lng:2.3630 },
-  { name:"Back Market", sector:"Commerce en ligne",   url:"https://www.backmarket.fr",
-    logo:"https://logo.clearbit.com/backmarket.fr",  lat:48.8656, lng:2.3510 },
-  { name:"PayFit",      sector:"Ressources humaines", url:"https://payfit.com",
-    logo:"https://logo.clearbit.com/payfit.com",     lat:48.8845, lng:2.3210 },
-  { name:"Swile",       sector:"Finance / RH",        url:"https://www.swile.co",
-    logo:"https://logo.clearbit.com/swile.co",       lat:48.8600, lng:2.3760 },
+/* Exemples affichés tant que DATA_ENDPOINT est vide */
+const SAMPLE = [
+  { name:"Alan",        sector:"Assurance santé",     url:"https://alan.com",         logo:"https://logo.clearbit.com/alan.com",       lat:48.8709, lng:2.3620 },
+  { name:"Doctolib",    sector:"Santé",               url:"https://www.doctolib.fr",  logo:"https://logo.clearbit.com/doctolib.fr",    lat:48.8918, lng:2.2380 },
+  { name:"Qonto",       sector:"Finance",             url:"https://qonto.com",        logo:"https://logo.clearbit.com/qonto.com",      lat:48.8666, lng:2.3630 },
+  { name:"Back Market", sector:"Commerce en ligne",   url:"https://www.backmarket.fr",logo:"https://logo.clearbit.com/backmarket.fr",  lat:48.8656, lng:2.3510 },
+  { name:"PayFit",      sector:"Ressources humaines", url:"https://payfit.com",       logo:"https://logo.clearbit.com/payfit.com",     lat:48.8845, lng:2.3210 },
+  { name:"Swile",       sector:"Finance / RH",        url:"https://www.swile.co",     logo:"https://logo.clearbit.com/swile.co",       lat:48.8600, lng:2.3760 },
 ];
 
 const PARIS = { lat:48.8566, lng:2.3522 };
+let STARTUPS = SAMPLE.slice();
 
 /* ---------- Utilitaires logo / initiales ---------- */
-function initials(name){ return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+function initials(name){ return String(name||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
 function logoNode(s, cls){
   if(s.logo){
     const img = document.createElement('img');
@@ -214,7 +259,27 @@ function pinNode(s, i){
   return wrap;
 }
 
-/* ---------- Chargement de l'API Google Maps ---------- */
+/* ---------- Récupération des startups (JSONP vers Apps Script) ---------- */
+function jsonp(url){
+  return new Promise((resolve, reject)=>{
+    const cb = '__cb' + Math.random().toString(36).slice(2);
+    const s = document.createElement('script');
+    const done = (data)=>{ resolve(data); cleanup(); };
+    window[cb] = done;
+    s.onerror = ()=>{ reject(new Error('jsonp')); cleanup(); };
+    function cleanup(){ try{ delete window[cb]; }catch(e){ window[cb]=undefined; } s.remove(); }
+    s.src = url + (url.indexOf('?')>-1 ? '&':'?') + 'callback=' + cb + '&t=' + Date.now();
+    document.head.appendChild(s);
+    setTimeout(()=>{ if(window[cb]){ reject(new Error('timeout')); cleanup(); } }, 12000);
+  });
+}
+async function loadStartups(){
+  if(!DATA_ENDPOINT) return SAMPLE.slice();
+  const data = await jsonp(DATA_ENDPOINT);
+  return Array.isArray(data) ? data : [];
+}
+
+/* ---------- Carte Google ---------- */
 function loadGoogleMaps(){
   return new Promise((resolve, reject)=>{
     const s = document.createElement('script');
@@ -225,12 +290,13 @@ function loadGoogleMaps(){
   });
 }
 
-let map, markersByIndex = [];
+let map, AdvMarker, markers = [], markersByIndex = [];
 
 async function init(){
   try{ await loadGoogleMaps(); }catch(e){ return; }
   const { Map } = await google.maps.importLibrary("maps");
   const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+  AdvMarker = AdvancedMarkerElement;
 
   map = new Map(document.getElementById('map'), {
     center: PARIS, zoom: 12, mapId: MAP_ID,
@@ -238,16 +304,33 @@ async function init(){
     zoomControl:true, clickableIcons:false, gestureHandling:"greedy",
   });
 
+  await refresh(true);
+  // Rafraîchit quand on revient sur l'onglet (ex. après validation dans le Sheet)
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh(false); });
+}
+
+async function refresh(fit){
+  try{ STARTUPS = await loadStartups(); }
+  catch(e){ console.warn('Chargement du Sheet impossible', e); if(!DATA_ENDPOINT) STARTUPS = SAMPLE.slice(); else return; }
+  renderMarkers(fit);
+  document.getElementById('countN').textContent = STARTUPS.length;
+}
+
+function renderMarkers(fit){
+  markers.forEach(m=> m.map = null); markers = []; markersByIndex = [];
+  if(!map) return;
   const bounds = new google.maps.LatLngBounds();
   STARTUPS.forEach((s, i)=>{
+    const lat = Number(s.lat), lng = Number(s.lng);
+    if(!isFinite(lat) || !isFinite(lng)) return;
     const content = pinNode(s, i);
-    const marker = new AdvancedMarkerElement({ map, position:{lat:s.lat, lng:s.lng}, content, title:s.name });
+    const marker = new AdvMarker({ map, position:{lat, lng}, content, title:s.name });
     content.style.cursor='pointer';
     content.addEventListener('click', ()=> select(i, true));
-    markersByIndex[i] = marker;
-    bounds.extend({lat:s.lat, lng:s.lng});
+    markers.push(marker); markersByIndex[i] = marker;
+    bounds.extend({lat, lng});
   });
-  if(STARTUPS.length){ map.fitBounds(bounds, 80); }
+  if(fit && markers.length){ map.fitBounds(bounds, 80); }
 }
 
 /* ---------- Panneau détail ---------- */
@@ -263,24 +346,25 @@ function openPanel(s){
   holder.innerHTML=''; holder.appendChild(logoNode(s,'p-logo'));
   document.getElementById('pName').textContent   = s.name;
   document.getElementById('pSector').textContent = s.sector || '—';
-  const host = s.url.replace(/^https?:\/\//,'').replace(/\/$/,'');
-  document.getElementById('pLinkRow').innerHTML  = `<a href="${s.url}" target="_blank" rel="noopener">${host}</a>`;
-  document.getElementById('pCta').href           = s.url;
+  const url = s.url && /^https?:\/\//.test(s.url) ? s.url : (s.url ? 'https://'+s.url : '#');
+  const host = String(s.url||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
+  document.getElementById('pLinkRow').innerHTML  = host ? `<a href="${url}" target="_blank" rel="noopener">${host}</a>` : '—';
+  document.getElementById('pCta').href           = url;
   panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
 }
 function closePanel(){ panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); setActivePin(-1); activeIndex=-1; }
 document.getElementById('pClose').addEventListener('click', closePanel);
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePanel(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closePanel(); closeModal(); }});
 
 function select(i, fromMarker){
   if(i===activeIndex && panel.classList.contains('open')) return;
-  const s = STARTUPS[i];
+  const s = STARTUPS[i]; if(!s) return;
   const switching = panel.classList.contains('open') && activeIndex!==i;
   activeIndex = i; setActivePin(i);
   const reveal = ()=>{
     openPanel(s);
     if(map){
-      map.panTo({lat:s.lat, lng:s.lng});
+      map.panTo({lat:Number(s.lat), lng:Number(s.lng)});
       if(map.getZoom()<14) map.setZoom(15);
       if(window.innerWidth>860){ setTimeout(()=> map.panBy(160,0), 60); }
     }
@@ -295,7 +379,7 @@ function toggleClear(){ qClear.classList.toggle('show', q.value.length>0); }
 function closeResults(){ results.classList.remove('show'); results.innerHTML=''; }
 function searchList(term){
   const t=term.trim().toLowerCase();
-  return STARTUPS.map((s,i)=>({s,i})).filter(({s})=> s.name.toLowerCase().includes(t) || (s.sector||'').toLowerCase().includes(t));
+  return STARTUPS.map((s,i)=>({s,i})).filter(({s})=> String(s.name||'').toLowerCase().includes(t) || String(s.sector||'').toLowerCase().includes(t));
 }
 function renderResults(list){
   if(!q.value.trim()){ closeResults(); return; }
@@ -318,13 +402,35 @@ q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const f=results.querySel
 qClear.addEventListener('click', ()=>{ q.value=''; toggleClear(); closeResults(); q.focus(); });
 document.addEventListener('click', e=>{ if(!e.target.closest('.sb-search')) closeResults(); });
 
-/* ---------- Bouton « Ajouter mon entreprise » -> formulaire externe ---------- */
-document.getElementById('btnAdd').addEventListener('click', ()=>{
-  if(!ADD_FORM_URL || /VOTRE_LIEN|XXXX/i.test(ADD_FORM_URL)){
-    alert("Le lien du formulaire n'est pas encore configuré (constante ADD_FORM_URL dans index.html).");
-    return;
+/* ---------- Modale « Ajouter mon entreprise » ---------- */
+const addModal=document.getElementById('addModal'), addForm=document.getElementById('addForm');
+function openModal(){ addModal.classList.add('open'); addModal.setAttribute('aria-hidden','false');
+  document.getElementById('addFormWrap').style.display=''; document.getElementById('addOk').classList.remove('show'); }
+function closeModal(){ addModal.classList.remove('open'); addModal.setAttribute('aria-hidden','true'); }
+document.getElementById('btnAdd').addEventListener('click', openModal);
+document.getElementById('addClose').addEventListener('click', closeModal);
+document.getElementById('addOkClose').addEventListener('click', closeModal);
+addModal.addEventListener('click', e=>{ if(e.target===addModal) closeModal(); });
+
+addForm.addEventListener('submit', e=>{
+  e.preventDefault();
+  const f=new FormData(addForm);
+  const payload = new URLSearchParams({
+    prenom:f.get('prenom')||'', nom:f.get('nom')||'', entreprise:f.get('entreprise')||'',
+    email:f.get('email')||'', site:f.get('url')||'', adresse:f.get('adresse')||'',
+    secteur:f.get('secteur')||'', logo:f.get('logo')||''
+  });
+  const btn=document.getElementById('addSubmit'); btn.classList.add('btn-sending'); btn.textContent='Envoi…';
+  const finish = ()=>{
+    document.getElementById('addFormWrap').style.display='none';
+    document.getElementById('addOk').classList.add('show');
+    addForm.reset(); btn.classList.remove('btn-sending'); btn.textContent='Envoyer ma demande';
+  };
+  if(DATA_ENDPOINT){
+    fetch(DATA_ENDPOINT, { method:'POST', mode:'no-cors', body:payload }).then(finish).catch(finish);
+  } else {
+    finish(); // pas encore connecté au Sheet : on remercie quand même
   }
-  window.open(ADD_FORM_URL, '_blank', 'noopener');
 });
 
 /* ---------- Init ---------- */
