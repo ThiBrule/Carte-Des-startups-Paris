@@ -102,24 +102,6 @@
     background:var(--ink);color:#fff;text-decoration:none;font-family:var(--title);font-weight:600;font-size:16px;padding:15px;border-radius:12px;transition:.15s}
   .panel .p-cta:hover{background:var(--pink);color:var(--ink)}
 
-  /* ---------- Modale « Ajouter mon entreprise » ---------- */
-  .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;
-    background:rgba(17,17,17,.45)}
-  .modal.open{display:flex}
-  .modal-card{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);width:min(460px,100%);
-    max-height:92vh;overflow-y:auto;padding:28px;position:relative}
-  .modal-card h2{font-family:var(--title);font-size:24px;margin:0 0 6px}
-  .modal-sub{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 20px}
-  .modal-close{position:absolute;top:16px;right:16px;border:0;background:#f0f2f1;width:34px;height:34px;border-radius:50%;
-    cursor:pointer;font-size:19px;line-height:1;color:var(--ink)}
-  .modal-card label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:14px}
-  .modal-card input{display:block;width:100%;margin-top:6px;background:#fff;border:1px solid var(--line);border-radius:10px;
-    padding:11px 12px;font-family:var(--body);font-size:14px;color:var(--ink)}
-  .modal-card input:focus{outline:none;border-color:var(--pink)}
-  .modal-ok{display:none;text-align:center;padding:14px 0 4px}
-  .modal-ok.show{display:block}
-  .modal-ok .tick{width:52px;height:52px;border-radius:50%;background:var(--sage);color:#173430;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px}
-
   /* ---------- Mobile ---------- */
   @media (max-width:860px){
     .layout{flex-direction:column;height:auto;min-height:100vh}
@@ -183,39 +165,14 @@
   </div>
 </div>
 
-<!-- ======== Modale ajouter ======== -->
-<div class="modal" id="addModal" aria-hidden="true">
-  <div class="modal-card">
-    <button class="modal-close" id="addClose" aria-label="Fermer">×</button>
-    <div id="addFormWrap">
-      <h2>Ajouter mon entreprise</h2>
-      <p class="modal-sub">Renseignez votre entreprise : nous l'ajouterons à la carte après vérification.</p>
-      <form id="addForm">
-        <label>Nom de l'entreprise *<input name="name" required placeholder="Ex. Ma Startup"></label>
-        <label>Secteur d'activité *<input name="sector" required placeholder="Ex. Finance, Santé…"></label>
-        <label>Site web *<input name="url" type="url" required placeholder="https://…"></label>
-        <label>Adresse à Paris *<input name="address" required placeholder="12 rue de Rivoli, 75004 Paris"></label>
-        <label>Logo — lien vers l'image (optionnel)<input name="logo" type="url" placeholder="https://…/logo.png"></label>
-        <label>Votre email *<input name="email" type="email" required placeholder="vous@entreprise.com"></label>
-        <button type="submit" class="cta-add" style="margin:6px 0 0">Envoyer ma demande</button>
-      </form>
-    </div>
-    <div class="modal-ok" id="addOk">
-      <div class="tick">✓</div>
-      <h2>Merci !</h2>
-      <p class="modal-sub">Votre demande est prête à être envoyée. Nous ajouterons votre entreprise à la carte après vérification.</p>
-      <button class="cta-add" id="addOkClose" style="margin:6px 0 0">Fermer</button>
-    </div>
-  </div>
-</div>
-
 <script>
 /* =====================================================================
    1) CLÉ GOOGLE MAPS + EMAIL DE RÉCEPTION DES DEMANDES
    ===================================================================== */
 const GOOGLE_MAPS_API_KEY = "AIzaSyA5e4Pq8XxrnI6BwCwQPw3ZCzPvR9OBF0Y";
 const MAP_ID              = "DEMO_MAP_ID";
-const CONTACT_EMAIL       = "contact@snapdesk.co";   // <-- email qui reçoit les demandes « Ajouter mon entreprise »
+// Lien du formulaire externe (Google Form ou Notion) ouvert par « Ajouter mon entreprise »
+const ADD_FORM_URL        = "https://forms.gle/VOTRE_LIEN";
 
 /* =====================================================================
    2) DONNÉES DES STARTUPS  —  À REMPLACER PAR VOTRE LISTE
@@ -313,7 +270,7 @@ function openPanel(s){
 }
 function closePanel(){ panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); setActivePin(-1); activeIndex=-1; }
 document.getElementById('pClose').addEventListener('click', closePanel);
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closePanel(); closeModal(); }});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePanel(); });
 
 function select(i, fromMarker){
   if(i===activeIndex && panel.classList.contains('open')) return;
@@ -361,31 +318,13 @@ q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const f=results.querySel
 qClear.addEventListener('click', ()=>{ q.value=''; toggleClear(); closeResults(); q.focus(); });
 document.addEventListener('click', e=>{ if(!e.target.closest('.sb-search')) closeResults(); });
 
-/* ---------- Modale « Ajouter mon entreprise » ---------- */
-const addModal=document.getElementById('addModal'), addForm=document.getElementById('addForm');
-function openModal(){ addModal.classList.add('open'); addModal.setAttribute('aria-hidden','false');
-  document.getElementById('addFormWrap').style.display=''; document.getElementById('addOk').classList.remove('show'); }
-function closeModal(){ addModal.classList.remove('open'); addModal.setAttribute('aria-hidden','true'); }
-document.getElementById('btnAdd').addEventListener('click', openModal);
-document.getElementById('addClose').addEventListener('click', closeModal);
-document.getElementById('addOkClose').addEventListener('click', closeModal);
-addModal.addEventListener('click', e=>{ if(e.target===addModal) closeModal(); });
-
-addForm.addEventListener('submit', e=>{
-  e.preventDefault();
-  const f=new FormData(addForm);
-  const subject=`Ajout à la carte des startups : ${f.get('name')}`;
-  const body=
-    `Nom de l'entreprise : ${f.get('name')}\n`+
-    `Secteur d'activité : ${f.get('sector')}\n`+
-    `Site web : ${f.get('url')}\n`+
-    `Adresse : ${f.get('address')}\n`+
-    `Logo : ${f.get('logo')||'—'}\n`+
-    `Email de contact : ${f.get('email')}\n`;
-  window.location.href=`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  document.getElementById('addFormWrap').style.display='none';
-  document.getElementById('addOk').classList.add('show');
-  addForm.reset();
+/* ---------- Bouton « Ajouter mon entreprise » -> formulaire externe ---------- */
+document.getElementById('btnAdd').addEventListener('click', ()=>{
+  if(!ADD_FORM_URL || /VOTRE_LIEN|XXXX/i.test(ADD_FORM_URL)){
+    alert("Le lien du formulaire n'est pas encore configuré (constante ADD_FORM_URL dans index.html).");
+    return;
+  }
+  window.open(ADD_FORM_URL, '_blank', 'noopener');
 });
 
 /* ---------- Init ---------- */
