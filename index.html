@@ -411,27 +411,40 @@ function renderMarkers(fit){
 }
 
 /* ---------- Filtre par secteur ---------- */
-let activeSectors = new Set();               // contient des CLÉS normalisées
+let activeSectors = new Set();               // contient des CLÉS de famille
+
+/* Fusions sémantiques MANUELLES (facultatif) : clé du 1er terme -> nom de famille affiché.
+   Ajoute ici ce que tu veux regrouper à la main, ex. 'e-sante':'Santé'. */
+const SECTOR_FAMILY = {
+  'data':'Data', 'big data':'Data',
+};
+
 // libellé propre : espaces réduits, « / » homogène
 function niceSector(x){ return String(x||'').replace(/\s*\/\s*/g,' / ').replace(/\s+/g,' ').trim(); }
-// clé de regroupement : minuscules + sans accents -> fusionne les variantes d'écriture
-function sectorKey(x){ return niceSector(x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+// clé de comparaison : minuscules, sans accents ni ponctuation d'écriture -> fusionne les variantes
+function sectorKey(x){ return niceSector(x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[.'’\-]/g,'').replace(/\s+/g,' ').trim(); }
+// famille = terme avant le premier « / » (+ éventuelle fusion manuelle)
+function familyOf(raw){
+  const first = niceSector(String(raw).split('/')[0]);
+  const k = sectorKey(first);
+  if(SECTOR_FAMILY[k]){ const lab=SECTOR_FAMILY[k]; return { key: sectorKey(lab), label: lab }; }
+  return { key: k, label: first };
+}
 function companySectorsRaw(s){ return String(s.sector||'').split(/[,;]/).map(x=>x.trim()).filter(Boolean); }
-function companySectorKeys(s){ return companySectorsRaw(s).map(sectorKey); }
+function companySectorKeys(s){ return companySectorsRaw(s).map(raw=> familyOf(raw).key).filter(Boolean); }
 function matchesSector(s){ return activeSectors.size===0 || companySectorKeys(s).some(k=>activeSectors.has(k)); }
 function updateSectorCnt(){
   const cnt=document.getElementById('sectorCnt');
   if(activeSectors.size>0){ cnt.style.display=''; cnt.textContent=activeSectors.size; } else { cnt.style.display='none'; }
 }
 function buildSectorMenu(){
-  // regroupe par clé normalisée ; le libellé affiché = la variante la plus fréquente
+  // regroupe par FAMILLE ; le libellé affiché = la variante la plus fréquente de la famille
   const agg={};
   STARTUPS.forEach(s=> companySectorsRaw(s).forEach(raw=>{
-    const key=sectorKey(raw); if(!key) return;
-    if(!agg[key]) agg[key]={count:0, labels:{}};
-    agg[key].count++;
-    const lab=niceSector(raw);
-    agg[key].labels[lab]=(agg[key].labels[lab]||0)+1;
+    const fam=familyOf(raw); if(!fam.key) return;
+    if(!agg[fam.key]) agg[fam.key]={count:0, labels:{}};
+    agg[fam.key].count++;
+    agg[fam.key].labels[fam.label]=(agg[fam.key].labels[fam.label]||0)+1;
   }));
   const entries=Object.keys(agg).map(key=>{
     const labels=agg[key].labels;
