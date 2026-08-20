@@ -9,8 +9,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- Regroupement des marqueurs (clustering) -->
-<script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 
 <style>
   :root{
@@ -245,9 +243,13 @@ let STARTUPS = SAMPLE.slice();
 
 /* ---------- Utilitaires logo / initiales ---------- */
 function initials(name){ return String(name||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+function domainOf(u){ const m=String(u||'').toLowerCase().match(/^(?:https?:\/\/)?(?:www\.)?([^\/?#]+)/); return m?m[1]:''; }
 function logoNode(s, cls){
-  // Source unique = colonne "lien du logo" du Google Sheet. Vide/erreur -> initiales.
-  const url = (s.logo && /^https?:\/\//i.test(s.logo)) ? s.logo : '';
+  // 1) logo manuel valide dans la colonne H (on ignore les vieilles URL Clearbit mortes)
+  // 2) sinon, pictogramme du site (favicon)
+  let url = '';
+  if(s.logo && /^https?:\/\//i.test(s.logo) && !/clearbit\.com/i.test(s.logo)) url = s.logo;
+  else { const d = domainOf(s.url); if(d) url = 'https://www.google.com/s2/favicons?sz=128&domain=' + encodeURIComponent(d); }
   if(url){
     const img = document.createElement('img');
     img.className = cls; img.alt = s.name;
@@ -305,7 +307,7 @@ function loadGoogleMaps(){
   });
 }
 
-let map, AdvMarker, markers = [], markersByIndex = [], clusterer = null;
+let map, AdvMarker, markers = [], markersByIndex = [];
 
 async function init(){
   try{ await loadGoogleMaps(); }catch(e){ return; }
@@ -341,8 +343,6 @@ async function refresh(fit){
 }
 
 function renderMarkers(fit){
-  const useCluster = (typeof markerClusterer !== 'undefined');
-  if(clusterer){ clusterer.clearMarkers(); }
   markers.forEach(m=> m.map = null); markers = []; markersByIndex = [];
   if(!map) return;
   const bounds = new google.maps.LatLngBounds();
@@ -350,17 +350,12 @@ function renderMarkers(fit){
     const lat = Number(s.lat), lng = Number(s.lng);
     if(!isFinite(lat) || !isFinite(lng)) return;
     const content = pinNode(s, i);
-    // sans cluster: on attache la carte directement ; avec cluster: c'est le clusterer qui gère
-    const marker = new AdvMarker({ position:{lat, lng}, content, title:s.name, map: useCluster ? null : map });
+    const marker = new AdvMarker({ position:{lat, lng}, content, title:s.name, map });
     content.style.cursor='pointer';
     content.addEventListener('click', ()=> select(i, true));
     markers.push(marker); markersByIndex[i] = marker;
     bounds.extend({lat, lng});
   });
-  if(useCluster){
-    if(!clusterer){ clusterer = new markerClusterer.MarkerClusterer({ map, markers }); }
-    else { clusterer.addMarkers(markers); }
-  }
   if(fit && markers.length){ map.fitBounds(bounds, 80); }
 }
 
