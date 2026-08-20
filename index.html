@@ -118,6 +118,31 @@
   .modal-ok .tick{width:52px;height:52px;border-radius:50%;background:var(--sage);color:#173430;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px}
   .btn-sending{opacity:.6;pointer-events:none}
 
+  /* ---------- Barre de contrôles sur la carte ---------- */
+  .map-controls{position:absolute;z-index:6;top:16px;left:16px;right:16px;display:flex;gap:10px;align-items:flex-start;pointer-events:none}
+  .map-controls > *{pointer-events:auto}
+  .map-search{position:relative;flex:1;max-width:420px}
+  .map-search .search-box{box-shadow:var(--shadow)}
+  .map-search .results{position:absolute;left:0;right:0;top:calc(100% + 8px);box-shadow:var(--shadow);z-index:8}
+
+  .sector{position:relative;flex:none}
+  .sector-btn{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;font-family:var(--body);font-size:15px;font-weight:600;color:var(--ink);cursor:pointer;box-shadow:var(--shadow);white-space:nowrap}
+  .sector-btn:hover{border-color:var(--pink)}
+  .sector-btn .chev{transition:.2s}
+  .sector-btn.open .chev{transform:rotate(180deg)}
+  .sector-btn .cnt{background:var(--pink);color:#111;border-radius:999px;font-size:12px;font-weight:700;padding:1px 8px}
+  .sector-menu{position:absolute;top:calc(100% + 8px);right:0;width:300px;max-height:min(60vh,440px);overflow-y:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:none;z-index:8}
+  .sector-menu.open{display:block}
+  .sector-menu .sm-head{display:flex;justify-content:space-between;align-items:center;padding:6px 8px 8px;border-bottom:1px solid var(--line);margin-bottom:6px}
+  .sector-menu .sm-head b{font-size:13px}
+  .sector-menu .sm-head button{border:0;background:transparent;color:var(--pink);font-weight:600;font-size:13px;cursor:pointer}
+  .sector-opt{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:9px;cursor:pointer;font-size:14px}
+  .sector-opt:hover{background:#faf5f6}
+  .sector-opt input{width:16px;height:16px;accent-color:var(--pink);flex:none;cursor:pointer}
+  .sector-opt .c{margin-left:auto;color:var(--muted);font-size:12px}
+
   /* ---------- Mobile ---------- */
   @media (max-width:860px){
     .layout{flex-direction:column;height:auto;min-height:100vh}
@@ -127,6 +152,9 @@
     .panel{top:auto;bottom:0;right:0;width:100%;height:min(72%,520px);border-radius:22px 22px 0 0;transform:translateY(105%)}
     .panel.open{transform:translateY(0)}
     .grid2{grid-template-columns:1fr}
+    .map-controls{flex-wrap:wrap}
+    .map-search{max-width:none;flex:1 1 100%}
+    .sector-menu{right:auto;left:0}
   }
 </style>
 </head>
@@ -138,15 +166,6 @@
   <aside class="sidebar">
     <div class="sb-brand">Carte des startups<span>Paris</span></div>
     <p class="sb-intro">Explorez les startups implantées à Paris. Cliquez sur un point de la carte pour découvrir l'entreprise.</p>
-
-    <div class="sb-search">
-      <div class="search-box">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-        <input id="q" type="text" placeholder="Rechercher une startup…" autocomplete="off">
-        <button class="search-clear" id="qClear" aria-label="Effacer">×</button>
-      </div>
-      <div class="results" id="results"></div>
-    </div>
 
     <button class="cta-add" id="btnAdd">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
@@ -160,6 +179,31 @@
   <!-- ======== Carte (droite) ======== -->
   <div class="stage">
     <div id="map"></div>
+
+    <!-- Barre de contrôles sur la carte : recherche + filtre secteurs -->
+    <div class="map-controls">
+      <div class="map-search">
+        <div class="search-box">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+          <input id="q" type="text" placeholder="Rechercher une startup…" autocomplete="off">
+          <button class="search-clear" id="qClear" aria-label="Effacer">×</button>
+        </div>
+        <div class="results" id="results"></div>
+      </div>
+
+      <div class="sector">
+        <button class="sector-btn" id="sectorBtn" aria-haspopup="true" aria-expanded="false">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>
+          <span>Secteurs</span>
+          <span class="cnt" id="sectorCnt" style="display:none">0</span>
+          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </button>
+        <div class="sector-menu" id="sectorMenu">
+          <div class="sm-head"><b>Filtrer par secteur</b><button id="sectorReset">Tout afficher</button></div>
+          <div id="sectorOptions"></div>
+        </div>
+      </div>
+    </div>
 
     <aside class="panel" id="panel" aria-hidden="true">
       <button class="p-close" id="pClose" aria-label="Fermer">×</button>
@@ -325,7 +369,7 @@ async function init(){
 
   // 1) Affichage instantané depuis le cache local (si on a déjà visité)
   const cached = DATA_ENDPOINT ? readCache() : null;
-  if(cached){ STARTUPS = cached; renderMarkers(true); document.getElementById('countN').textContent = STARTUPS.length; }
+  if(cached){ STARTUPS = cached; buildSectorMenu(); renderMarkers(true); }
   // 2) Données fraîches depuis le Sheet (met à jour sans bloquer l'affichage)
   await refresh(!cached);
   // Rafraîchit quand on revient sur l'onglet (ex. après validation dans le Sheet)
@@ -335,11 +379,11 @@ async function init(){
 async function refresh(fit){
   let data;
   try{ data = await loadStartups(); }
-  catch(e){ console.warn('Chargement du Sheet impossible', e); if(!DATA_ENDPOINT){ STARTUPS = SAMPLE.slice(); renderMarkers(fit); document.getElementById('countN').textContent = STARTUPS.length; } return; }
+  catch(e){ console.warn('Chargement du Sheet impossible', e); if(!DATA_ENDPOINT){ STARTUPS = SAMPLE.slice(); buildSectorMenu(); renderMarkers(fit); } return; }
   STARTUPS = data;
   if(DATA_ENDPOINT) writeCache(data);
+  buildSectorMenu();
   renderMarkers(fit);
-  document.getElementById('countN').textContent = STARTUPS.length;
 }
 
 function renderMarkers(fit){
@@ -349,6 +393,7 @@ function renderMarkers(fit){
   STARTUPS.forEach((s, i)=>{
     const lat = Number(s.lat), lng = Number(s.lng);
     if(!isFinite(lat) || !isFinite(lng)) return;
+    if(!matchesSector(s)) return;                 // filtre secteurs
     const content = pinNode(s, i);
     const marker = new AdvMarker({ position:{lat, lng}, content, title:s.name, map });
     content.style.cursor='pointer';
@@ -356,8 +401,39 @@ function renderMarkers(fit){
     markers.push(marker); markersByIndex[i] = marker;
     bounds.extend({lat, lng});
   });
+  document.getElementById('countN').textContent = markers.length;
   if(fit && markers.length){ map.fitBounds(bounds, 80); }
 }
+
+/* ---------- Filtre par secteur ---------- */
+let activeSectors = new Set();
+function companySectors(s){ return String(s.sector||'').split(/[,;]/).map(x=>x.trim()).filter(Boolean); }
+function matchesSector(s){ return activeSectors.size===0 || companySectors(s).some(x=>activeSectors.has(x)); }
+function updateSectorCnt(){
+  const cnt=document.getElementById('sectorCnt');
+  if(activeSectors.size>0){ cnt.style.display=''; cnt.textContent=activeSectors.size; } else { cnt.style.display='none'; }
+}
+function buildSectorMenu(){
+  const counts={};
+  STARTUPS.forEach(s=> companySectors(s).forEach(x=>{ counts[x]=(counts[x]||0)+1; }));
+  const names=Object.keys(counts).sort((a,b)=>a.localeCompare(b,'fr'));
+  // on retire du filtre actif les secteurs qui n'existent plus
+  activeSectors.forEach(x=>{ if(!(x in counts)) activeSectors.delete(x); });
+  const box=document.getElementById('sectorOptions'); box.innerHTML='';
+  names.forEach(name=>{
+    const lab=document.createElement('label'); lab.className='sector-opt';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.value=name; cb.checked=activeSectors.has(name);
+    cb.addEventListener('change', ()=>{ if(cb.checked) activeSectors.add(name); else activeSectors.delete(name); updateSectorCnt(); renderMarkers(true); });
+    const span=document.createElement('span'); span.textContent=name;
+    const c=document.createElement('span'); c.className='c'; c.textContent=counts[name];
+    lab.appendChild(cb); lab.appendChild(span); lab.appendChild(c); box.appendChild(lab);
+  });
+  updateSectorCnt();
+}
+const sectorBtn=document.getElementById('sectorBtn'), sectorMenu=document.getElementById('sectorMenu');
+sectorBtn.addEventListener('click', e=>{ e.stopPropagation(); const open=sectorMenu.classList.toggle('open'); sectorBtn.classList.toggle('open',open); sectorBtn.setAttribute('aria-expanded',open); });
+document.getElementById('sectorReset').addEventListener('click', ()=>{ activeSectors.clear(); document.querySelectorAll('#sectorOptions input').forEach(cb=>cb.checked=false); updateSectorCnt(); renderMarkers(true); });
+document.addEventListener('click', e=>{ if(!e.target.closest('.sector')){ sectorMenu.classList.remove('open'); sectorBtn.classList.remove('open'); sectorBtn.setAttribute('aria-expanded','false'); } });
 
 /* ---------- Panneau détail ---------- */
 const panel = document.getElementById('panel');
@@ -405,7 +481,7 @@ function toggleClear(){ qClear.classList.toggle('show', q.value.length>0); }
 function closeResults(){ results.classList.remove('show'); results.innerHTML=''; }
 function searchList(term){
   const t=term.trim().toLowerCase();
-  return STARTUPS.map((s,i)=>({s,i})).filter(({s})=> String(s.name||'').toLowerCase().includes(t) || String(s.sector||'').toLowerCase().includes(t));
+  return STARTUPS.map((s,i)=>({s,i})).filter(({s})=> matchesSector(s) && (String(s.name||'').toLowerCase().includes(t) || String(s.sector||'').toLowerCase().includes(t)));
 }
 function renderResults(list){
   if(!q.value.trim()){ closeResults(); return; }
@@ -426,7 +502,7 @@ q.addEventListener('input', ()=>{ toggleClear(); renderResults(searchList(q.valu
 q.addEventListener('focus', ()=>{ if(q.value.trim()) renderResults(searchList(q.value)); });
 q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const f=results.querySelector('.result'); if(f) select(+f.dataset.i,false); }});
 qClear.addEventListener('click', ()=>{ q.value=''; toggleClear(); closeResults(); q.focus(); });
-document.addEventListener('click', e=>{ if(!e.target.closest('.sb-search')) closeResults(); });
+document.addEventListener('click', e=>{ if(!e.target.closest('.map-search')) closeResults(); });
 
 /* ---------- Modale « Ajouter mon entreprise » ---------- */
 const addModal=document.getElementById('addModal'), addForm=document.getElementById('addForm');
