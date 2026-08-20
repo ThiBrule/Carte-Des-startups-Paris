@@ -78,6 +78,12 @@ function reply_(e, obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function isTrue_(v) { // accepte la case cochée (booléen) OU le texte "TRUE"/"VRAI"
+  if (v === true) return true;
+  var s = String(v).trim().toUpperCase();
+  return s === 'TRUE' || s === 'VRAI' || s === 'OUI' || s === '1';
+}
+
 function num_(v) { // gère les nombres et le format français "48,86"
   if (typeof v === 'number') return v;
   if (v === '' || v == null) return NaN;
@@ -96,7 +102,7 @@ function doGet(e) {
     var values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
     for (var i = 0; i < values.length; i++) {
       var r = values[i];
-      var validated = c.validation > 0 && r[c.validation - 1] === true;
+      var validated = c.validation > 0 && isTrue_(r[c.validation - 1]);
       if (!validated) continue;
       var name = c.entreprise > 0 ? r[c.entreprise - 1] : '';
       if (!name) continue;
@@ -143,7 +149,7 @@ function geocodeAll() {
   for (var i = 0; i < values.length; i++) {
     if (new Date().getTime() - start > 280000) break; // ~4 min 40, marge sous la limite de 6 min
     var r = values[i];
-    var validated = c.validation > 0 && r[c.validation - 1] === true;
+    var validated = c.validation > 0 && isTrue_(r[c.validation - 1]);
     if (!validated) continue;
     if (c.entreprise > 0 && !r[c.entreprise - 1]) continue;
     var hasLat = !isNaN(num_(c.lat > 0 ? r[c.lat - 1] : ''));
