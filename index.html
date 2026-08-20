@@ -132,10 +132,15 @@
   .sector-btn .chev{transition:.2s}
   .sector-btn.open .chev{transform:rotate(180deg)}
   .sector-btn .cnt{background:var(--pink);color:#111;border-radius:999px;font-size:12px;font-weight:700;padding:1px 8px}
-  .sector-menu{position:absolute;top:calc(100% + 8px);right:0;width:300px;max-height:min(60vh,440px);overflow-y:auto;
-    background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:none;z-index:8}
+  .sector-menu{position:absolute;top:calc(100% + 8px);right:0;width:310px;max-height:min(60vh,440px);overflow-y:scroll;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:0 8px 8px;display:none;z-index:8;
+    scrollbar-width:thin;scrollbar-color:var(--pink) #eef0ef;scrollbar-gutter:stable}
   .sector-menu.open{display:block}
-  .sector-menu .sm-head{display:flex;justify-content:space-between;align-items:center;padding:6px 8px 8px;border-bottom:1px solid var(--line);margin-bottom:6px}
+  .sector-menu::-webkit-scrollbar{width:12px}
+  .sector-menu::-webkit-scrollbar-track{background:#eef0ef;border-radius:0 14px 14px 0}
+  .sector-menu::-webkit-scrollbar-thumb{background:var(--pink);border-radius:8px;border:3px solid var(--panel)}
+  .sector-menu::-webkit-scrollbar-thumb:hover{background:#d97e90}
+  .sector-menu .sm-head{position:sticky;top:0;background:var(--panel);display:flex;justify-content:space-between;align-items:center;padding:10px 8px 8px;border-bottom:1px solid var(--line);margin-bottom:6px;z-index:1}
   .sector-menu .sm-head b{font-size:13px}
   .sector-menu .sm-head button{border:0;background:transparent;color:var(--pink);font-weight:600;font-size:13px;cursor:pointer}
   .sector-opt{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:9px;cursor:pointer;font-size:14px}
@@ -406,26 +411,42 @@ function renderMarkers(fit){
 }
 
 /* ---------- Filtre par secteur ---------- */
-let activeSectors = new Set();
-function companySectors(s){ return String(s.sector||'').split(/[,;]/).map(x=>x.trim()).filter(Boolean); }
-function matchesSector(s){ return activeSectors.size===0 || companySectors(s).some(x=>activeSectors.has(x)); }
+let activeSectors = new Set();               // contient des CLÉS normalisées
+// libellé propre : espaces réduits, « / » homogène
+function niceSector(x){ return String(x||'').replace(/\s*\/\s*/g,' / ').replace(/\s+/g,' ').trim(); }
+// clé de regroupement : minuscules + sans accents -> fusionne les variantes d'écriture
+function sectorKey(x){ return niceSector(x).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function companySectorsRaw(s){ return String(s.sector||'').split(/[,;]/).map(x=>x.trim()).filter(Boolean); }
+function companySectorKeys(s){ return companySectorsRaw(s).map(sectorKey); }
+function matchesSector(s){ return activeSectors.size===0 || companySectorKeys(s).some(k=>activeSectors.has(k)); }
 function updateSectorCnt(){
   const cnt=document.getElementById('sectorCnt');
   if(activeSectors.size>0){ cnt.style.display=''; cnt.textContent=activeSectors.size; } else { cnt.style.display='none'; }
 }
 function buildSectorMenu(){
-  const counts={};
-  STARTUPS.forEach(s=> companySectors(s).forEach(x=>{ counts[x]=(counts[x]||0)+1; }));
-  const names=Object.keys(counts).sort((a,b)=>a.localeCompare(b,'fr'));
+  // regroupe par clé normalisée ; le libellé affiché = la variante la plus fréquente
+  const agg={};
+  STARTUPS.forEach(s=> companySectorsRaw(s).forEach(raw=>{
+    const key=sectorKey(raw); if(!key) return;
+    if(!agg[key]) agg[key]={count:0, labels:{}};
+    agg[key].count++;
+    const lab=niceSector(raw);
+    agg[key].labels[lab]=(agg[key].labels[lab]||0)+1;
+  }));
+  const entries=Object.keys(agg).map(key=>{
+    const labels=agg[key].labels;
+    const label=Object.keys(labels).sort((a,b)=> labels[b]-labels[a] || a.localeCompare(b,'fr'))[0];
+    return { key, label, count:agg[key].count };
+  }).sort((a,b)=> a.label.localeCompare(b.label,'fr'));
   // on retire du filtre actif les secteurs qui n'existent plus
-  activeSectors.forEach(x=>{ if(!(x in counts)) activeSectors.delete(x); });
+  activeSectors.forEach(k=>{ if(!agg[k]) activeSectors.delete(k); });
   const box=document.getElementById('sectorOptions'); box.innerHTML='';
-  names.forEach(name=>{
+  entries.forEach(({key,label,count})=>{
     const lab=document.createElement('label'); lab.className='sector-opt';
-    const cb=document.createElement('input'); cb.type='checkbox'; cb.value=name; cb.checked=activeSectors.has(name);
-    cb.addEventListener('change', ()=>{ if(cb.checked) activeSectors.add(name); else activeSectors.delete(name); updateSectorCnt(); renderMarkers(true); });
-    const span=document.createElement('span'); span.textContent=name;
-    const c=document.createElement('span'); c.className='c'; c.textContent=counts[name];
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.value=key; cb.checked=activeSectors.has(key);
+    cb.addEventListener('change', ()=>{ if(cb.checked) activeSectors.add(key); else activeSectors.delete(key); updateSectorCnt(); renderMarkers(true); });
+    const span=document.createElement('span'); span.textContent=label;
+    const c=document.createElement('span'); c.className='c'; c.textContent=count;
     lab.appendChild(cb); lab.appendChild(span); lab.appendChild(c); box.appendChild(lab);
   });
   updateSectorCnt();
