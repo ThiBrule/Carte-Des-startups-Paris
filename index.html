@@ -6,7 +6,6 @@
 <title>Carte des startups — Paris</title>
 <meta name="description" content="Découvrez sur une carte interactive de Paris les startups référencées : localisation, secteur d'activité et lien vers chaque site.">
 
-<!-- Polices Snapdesk -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -23,30 +22,48 @@
   html,body{margin:0;height:100%}
   body{font-family:var(--body);color:var(--ink);background:var(--bg)}
 
-  /* ---------- Layout plein écran ---------- */
-  .map-app{position:relative;width:100%;height:100vh;min-height:520px;overflow:hidden}
+  /* ---------- Structure 2 colonnes ---------- */
+  .layout{display:flex;height:100vh;min-height:560px;overflow:hidden}
+  .sidebar{width:360px;flex:none;background:var(--panel);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;padding:24px 22px;overflow-y:auto}
+  .stage{position:relative;flex:1;min-width:0;height:100%}
   #map{position:absolute;inset:0;z-index:1;background:#e9edec}
 
-  /* ---------- Barre de recherche ---------- */
-  .search{position:absolute;z-index:6;top:18px;left:18px;width:min(360px,calc(100% - 36px))}
+  /* ---------- Colonne gauche ---------- */
+  .sb-brand{font-family:var(--title);font-weight:700;font-size:24px;line-height:1.1;margin-bottom:6px}
+  .sb-brand span{display:block;color:var(--pink)}
+  .sb-intro{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 18px}
+  .sb-search{position:relative;margin-bottom:16px}
   .search-box{display:flex;align-items:center;gap:10px;background:var(--panel);
-    border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
+    border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .search-box:focus-within{border-color:var(--pink)}
   .search-box svg{flex:none;color:var(--muted)}
   .search-box input{border:0;outline:0;width:100%;font-family:var(--body);font-size:15px;color:var(--ink);background:transparent}
   .search-box input::placeholder{color:var(--muted)}
   .search-clear{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px;display:none}
   .search-clear.show{display:block}
-  .results{margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
-    box-shadow:var(--shadow);overflow:hidden;max-height:min(52vh,420px);overflow-y:auto;display:none}
+  .results{margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;max-height:min(46vh,360px);overflow-y:auto;display:none}
   .results.show{display:block}
-  .result{display:flex;align-items:center;gap:11px;padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--line)}
+  .result{display:flex;align-items:center;gap:11px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
   .result:last-child{border-bottom:0}
-  .result:hover,.result.active{background:#faf5f6}
-  .result .r-logo{width:34px;height:34px;border-radius:9px;object-fit:contain;background:#fff;border:1px solid var(--line);flex:none}
-  .result .r-txt{min-width:0}
+  .result:hover{background:#faf5f6}
+  .result .r-logo{width:32px;height:32px;border-radius:8px;object-fit:contain;background:#fff;border:1px solid var(--line);flex:none}
+  .result .r-logo.initials{display:flex;align-items:center;justify-content:center;font-family:var(--title);font-weight:700;font-size:13px}
   .result .r-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .result .r-sector{font-size:12px;color:var(--muted)}
-  .no-result{padding:14px 15px;color:var(--muted);font-size:14px}
+  .no-result{padding:13px;color:var(--muted);font-size:14px}
+
+  /* CTA ajouter */
+  .cta-add{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;cursor:pointer;
+    background:var(--pink);color:var(--ink);border:0;font-family:var(--title);font-weight:600;font-size:16px;
+    padding:14px;border-radius:12px;transition:.15s;margin-bottom:16px}
+  .cta-add:hover{background:var(--ink);color:#fff}
+  .cta-add svg{flex:none}
+
+  .sb-spacer{flex:1}
+  .sb-foot{border-top:1px solid var(--line);padding-top:14px;font-size:13px;color:var(--muted)}
+  .sb-foot b{color:var(--pink);font-size:15px}
 
   /* ---------- Marqueurs (logos) ---------- */
   .pin{position:relative;width:46px;height:46px;cursor:pointer}
@@ -60,124 +77,148 @@
   .pin:hover .disc, .pin.is-active .disc{transform:scale(1.08);border-color:var(--ink)}
   .pin.is-active .tip{border-color:var(--ink)}
 
-  /* ---------- Panneau de droite ---------- */
-  .panel{position:absolute;z-index:7;top:0;right:0;height:100%;width:min(380px,88%);
+  /* ---------- Panneau détail (droite) ---------- */
+  .panel{position:absolute;z-index:7;top:0;right:0;height:100%;width:min(360px,90%);
     background:var(--panel);box-shadow:-14px 0 40px rgba(17,17,17,.18);
     transform:translateX(105%);transition:transform .32s cubic-bezier(.22,.61,.36,1);
     display:flex;flex-direction:column}
   .panel.open{transform:translateX(0)}
   .panel .p-close{position:absolute;top:14px;right:14px;z-index:2;border:0;background:rgba(255,255,255,.85);
-    width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:20px;line-height:1;color:var(--ink);
-    box-shadow:0 2px 8px rgba(17,17,17,.15)}
+    width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:20px;line-height:1;color:var(--ink);box-shadow:0 2px 8px rgba(17,17,17,.15)}
   .panel .p-head{padding:34px 26px 22px;background:linear-gradient(180deg,#fbeef1 0%,#fff 100%);border-bottom:1px solid var(--line)}
-  .panel .p-logo{width:88px;height:88px;border-radius:20px;background:#fff;border:1px solid var(--line);
+  .panel .p-logo{width:84px;height:84px;border-radius:20px;background:#fff;border:1px solid var(--line);
     box-shadow:0 6px 18px rgba(17,17,17,.10);object-fit:contain;padding:10px;margin-bottom:16px}
-  .panel .p-logo.initials{display:flex;align-items:center;justify-content:center;font-family:var(--title);font-weight:700;font-size:34px}
-  .panel .p-name{font-family:var(--title);font-weight:700;font-size:26px;margin:0 0 10px;line-height:1.15}
-  .panel .badge{display:inline-flex;align-items:center;gap:7px;background:var(--sage);color:#173430;
-    font-weight:600;font-size:13px;padding:6px 12px;border-radius:999px}
+  .panel .p-logo.initials{display:flex;align-items:center;justify-content:center;font-family:var(--title);font-weight:700;font-size:32px}
+  .panel .p-name{font-family:var(--title);font-weight:700;font-size:25px;margin:0 0 10px;line-height:1.15}
+  .panel .badge{display:inline-flex;align-items:center;gap:7px;background:var(--sage);color:#173430;font-weight:600;font-size:13px;padding:6px 12px;border-radius:999px}
   .panel .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:#173430}
   .panel .p-body{padding:22px 26px;overflow-y:auto;flex:1}
   .panel .p-row{margin-bottom:18px}
   .panel .p-row .k{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600;margin-bottom:5px}
-  .panel .p-row .v{font-size:15px;color:var(--ink)}
+  .panel .p-row .v{font-size:15px}
   .panel .p-row .v a{color:var(--pink);text-decoration:none;font-weight:600;word-break:break-all}
   .panel .p-row .v a:hover{text-decoration:underline}
   .panel .p-cta{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;
-    background:var(--ink);color:#fff;text-decoration:none;font-family:var(--title);font-weight:600;font-size:16px;
-    padding:15px;border-radius:12px;transition:.15s}
+    background:var(--ink);color:#fff;text-decoration:none;font-family:var(--title);font-weight:600;font-size:16px;padding:15px;border-radius:12px;transition:.15s}
   .panel .p-cta:hover{background:var(--pink);color:var(--ink)}
 
-  /* Compteur discret */
-  .count{position:absolute;z-index:5;left:18px;bottom:24px;background:var(--panel);border:1px solid var(--line);
-    border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:var(--shadow)}
-  .count b{color:var(--pink)}
+  /* ---------- Modale « Ajouter mon entreprise » ---------- */
+  .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;
+    background:rgba(17,17,17,.45)}
+  .modal.open{display:flex}
+  .modal-card{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);width:min(460px,100%);
+    max-height:92vh;overflow-y:auto;padding:28px;position:relative}
+  .modal-card h2{font-family:var(--title);font-size:24px;margin:0 0 6px}
+  .modal-sub{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 20px}
+  .modal-close{position:absolute;top:16px;right:16px;border:0;background:#f0f2f1;width:34px;height:34px;border-radius:50%;
+    cursor:pointer;font-size:19px;line-height:1;color:var(--ink)}
+  .modal-card label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:14px}
+  .modal-card input{display:block;width:100%;margin-top:6px;background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:11px 12px;font-family:var(--body);font-size:14px;color:var(--ink)}
+  .modal-card input:focus{outline:none;border-color:var(--pink)}
+  .modal-ok{display:none;text-align:center;padding:14px 0 4px}
+  .modal-ok.show{display:block}
+  .modal-ok .tick{width:52px;height:52px;border-radius:50%;background:var(--sage);color:#173430;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px}
 
-  /* Message si la clé API manque */
-  .apikey-warn{position:absolute;inset:0;z-index:8;display:none;flex-direction:column;align-items:center;justify-content:center;
-    text-align:center;padding:28px;background:#e9edec;color:var(--ink)}
-  .apikey-warn.show{display:flex}
-  .apikey-warn h2{font-family:var(--title);font-size:22px;margin:0 0 10px}
-  .apikey-warn p{max-width:460px;color:var(--muted);margin:0 0 6px;font-size:14px;line-height:1.5}
-  .apikey-warn code{background:#fff;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:13px}
-
-  /* ---------- Mobile : panneau = feuille du bas ---------- */
-  @media (max-width:640px){
-    .panel{top:auto;bottom:0;right:0;width:100%;height:min(72%,540px);
-      border-radius:22px 22px 0 0;transform:translateY(105%)}
+  /* ---------- Mobile ---------- */
+  @media (max-width:860px){
+    .layout{flex-direction:column;height:auto;min-height:100vh}
+    .sidebar{width:100%;border-right:0;border-bottom:1px solid var(--line);max-height:none}
+    .sb-spacer{display:none}
+    .stage{height:64vh;min-height:420px}
+    .panel{top:auto;bottom:0;right:0;width:100%;height:min(72%,520px);border-radius:22px 22px 0 0;transform:translateY(105%)}
     .panel.open{transform:translateY(0)}
-    .panel .p-head{padding-top:26px}
-    .count{display:none}
   }
 </style>
 </head>
 <body>
 
-<div class="map-app">
-  <div id="map"></div>
+<div class="layout">
 
-  <!-- Recherche -->
-  <div class="search">
-    <div class="search-box">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-      <input id="q" type="text" placeholder="Rechercher une startup…" autocomplete="off">
-      <button class="search-clear" id="qClear" aria-label="Effacer">×</button>
-    </div>
-    <div class="results" id="results"></div>
-  </div>
+  <!-- ======== Colonne gauche ======== -->
+  <aside class="sidebar">
+    <div class="sb-brand">Carte des startups<span>Paris</span></div>
+    <p class="sb-intro">Explorez les startups implantées à Paris. Cliquez sur un point de la carte pour découvrir l'entreprise.</p>
 
-  <!-- Panneau de détails -->
-  <aside class="panel" id="panel" aria-hidden="true">
-    <button class="p-close" id="pClose" aria-label="Fermer">×</button>
-    <div class="p-head">
-      <div id="pLogo"></div>
-      <h2 class="p-name" id="pName"></h2>
-      <span class="badge" id="pSector"></span>
-    </div>
-    <div class="p-body">
-      <div class="p-row">
-        <div class="k">Site web</div>
-        <div class="v" id="pLinkRow"></div>
+    <div class="sb-search">
+      <div class="search-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+        <input id="q" type="text" placeholder="Rechercher une startup…" autocomplete="off">
+        <button class="search-clear" id="qClear" aria-label="Effacer">×</button>
       </div>
-      <a class="p-cta" id="pCta" target="_blank" rel="noopener">
-        Visiter le site
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"></path><path d="M7 7h10v10"></path></svg>
-      </a>
+      <div class="results" id="results"></div>
     </div>
+
+    <button class="cta-add" id="btnAdd">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      Ajouter mon entreprise
+    </button>
+
+    <div class="sb-spacer"></div>
+    <div class="sb-foot"><b id="countN">0</b> startups référencées</div>
   </aside>
 
-  <div class="count" id="count"></div>
+  <!-- ======== Carte (droite) ======== -->
+  <div class="stage">
+    <div id="map"></div>
 
-  <div class="apikey-warn" id="apiWarn">
-    <h2>Clé Google Maps manquante</h2>
-    <p>Renseignez votre clé dans <code>index.html</code> : constante <code>GOOGLE_MAPS_API_KEY</code>.</p>
-    <p>Obtenez-la sur <b>console.cloud.google.com</b> → activez « Maps JavaScript API » → Identifiants → Créer une clé API.</p>
+    <aside class="panel" id="panel" aria-hidden="true">
+      <button class="p-close" id="pClose" aria-label="Fermer">×</button>
+      <div class="p-head">
+        <div id="pLogo"></div>
+        <h2 class="p-name" id="pName"></h2>
+        <span class="badge" id="pSector"></span>
+      </div>
+      <div class="p-body">
+        <div class="p-row">
+          <div class="k">Site web</div>
+          <div class="v" id="pLinkRow"></div>
+        </div>
+        <a class="p-cta" id="pCta" target="_blank" rel="noopener">
+          Visiter le site
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"></path><path d="M7 7h10v10"></path></svg>
+        </a>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ======== Modale ajouter ======== -->
+<div class="modal" id="addModal" aria-hidden="true">
+  <div class="modal-card">
+    <button class="modal-close" id="addClose" aria-label="Fermer">×</button>
+    <div id="addFormWrap">
+      <h2>Ajouter mon entreprise</h2>
+      <p class="modal-sub">Renseignez votre entreprise : nous l'ajouterons à la carte après vérification.</p>
+      <form id="addForm">
+        <label>Nom de l'entreprise *<input name="name" required placeholder="Ex. Ma Startup"></label>
+        <label>Secteur d'activité *<input name="sector" required placeholder="Ex. Finance, Santé…"></label>
+        <label>Site web *<input name="url" type="url" required placeholder="https://…"></label>
+        <label>Adresse à Paris *<input name="address" required placeholder="12 rue de Rivoli, 75004 Paris"></label>
+        <label>Logo — lien vers l'image (optionnel)<input name="logo" type="url" placeholder="https://…/logo.png"></label>
+        <label>Votre email *<input name="email" type="email" required placeholder="vous@entreprise.com"></label>
+        <button type="submit" class="cta-add" style="margin:6px 0 0">Envoyer ma demande</button>
+      </form>
+    </div>
+    <div class="modal-ok" id="addOk">
+      <div class="tick">✓</div>
+      <h2>Merci !</h2>
+      <p class="modal-sub">Votre demande est prête à être envoyée. Nous ajouterons votre entreprise à la carte après vérification.</p>
+      <button class="cta-add" id="addOkClose" style="margin:6px 0 0">Fermer</button>
+    </div>
   </div>
 </div>
 
 <script>
 /* =====================================================================
-   1) CLÉ GOOGLE MAPS  —  À RENSEIGNER
-   ---------------------------------------------------------------------
-   Créez-la sur https://console.cloud.google.com :
-     • activez l'API « Maps JavaScript API »
-     • Identifiants → Créer une clé API
-     • (recommandé) restreignez la clé à votre domaine
-   MAP_ID : laissez "DEMO_MAP_ID" pour tester. Pour la prod, créez un
-   « ID de carte » (Map ID) gratuit dans la console → styles personnalisés.
+   1) CLÉ GOOGLE MAPS + EMAIL DE RÉCEPTION DES DEMANDES
    ===================================================================== */
 const GOOGLE_MAPS_API_KEY = "AIzaSyA5e4Pq8XxrnI6BwCwQPw3ZCzPvR9OBF0Y";
 const MAP_ID              = "DEMO_MAP_ID";
+const CONTACT_EMAIL       = "contact@snapdesk.co";   // <-- email qui reçoit les demandes « Ajouter mon entreprise »
 
 /* =====================================================================
    2) DONNÉES DES STARTUPS  —  À REMPLACER PAR VOTRE LISTE
-   ---------------------------------------------------------------------
-     name   : nom affiché
-     sector : secteur d'activité (badge)
-     url    : lien du site (avec https://)
-     logo   : URL d'un logo (png/svg). Laissez "" -> initiales affichées.
-     lat,lng: coordonnées GPS. Astuce : clic droit sur Google Maps
-              -> les 2 nombres affichés sont "lat, lng".
    ===================================================================== */
 const STARTUPS = [
   { name:"Alan",        sector:"Assurance santé",     url:"https://alan.com",
@@ -197,22 +238,19 @@ const STARTUPS = [
 const PARIS = { lat:48.8566, lng:2.3522 };
 
 /* ---------- Utilitaires logo / initiales ---------- */
-function initials(name){
-  return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-}
+function initials(name){ return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
 function logoNode(s, cls){
   if(s.logo){
     const img = document.createElement('img');
     img.className = cls; img.src = s.logo; img.alt = s.name;
-    img.onerror = ()=>{ const d=document.createElement('div'); d.className=cls+' initials'; d.textContent=initials(s.name); img.replaceWith(d); };
+    img.onerror = ()=>{ const d=document.createElement('div'); d.className=(cls+' initials').trim(); d.textContent=initials(s.name); img.replaceWith(d); };
     return img;
   }
-  const d = document.createElement('div'); d.className = cls+' initials'; d.textContent = initials(s.name);
+  const d = document.createElement('div'); d.className=(cls+' initials').trim(); d.textContent = initials(s.name);
   return d;
 }
 function pinNode(s, i){
-  const wrap = document.createElement('div');
-  wrap.className = 'pin'; wrap.dataset.i = i;
+  const wrap = document.createElement('div'); wrap.className='pin'; wrap.dataset.i=i;
   const disc = document.createElement('div'); disc.className='disc'; disc.appendChild(logoNode(s,''));
   const tip  = document.createElement('div'); tip.className='tip';
   wrap.appendChild(disc); wrap.appendChild(tip);
@@ -222,9 +260,6 @@ function pinNode(s, i){
 /* ---------- Chargement de l'API Google Maps ---------- */
 function loadGoogleMaps(){
   return new Promise((resolve, reject)=>{
-    if(!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY==="VOTRE_CLE_API"){
-      document.getElementById('apiWarn').classList.add('show'); reject(new Error('no-key')); return;
-    }
     const s = document.createElement('script');
     s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&v=weekly&libraries=marker&loading=async&callback=__initMap`;
     s.async = true; s.onerror = reject;
@@ -237,45 +272,38 @@ let map, markersByIndex = [];
 
 async function init(){
   try{ await loadGoogleMaps(); }catch(e){ return; }
-
   const { Map } = await google.maps.importLibrary("maps");
   const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
 
   map = new Map(document.getElementById('map'), {
     center: PARIS, zoom: 12, mapId: MAP_ID,
-    disableDefaultUI: false, mapTypeControl: false, streetViewControl: false,
-    fullscreenControl: false, zoomControl: true, clickableIcons: false,
-    gestureHandling: "greedy",
+    mapTypeControl:false, streetViewControl:false, fullscreenControl:false,
+    zoomControl:true, clickableIcons:false, gestureHandling:"greedy",
   });
 
   const bounds = new google.maps.LatLngBounds();
   STARTUPS.forEach((s, i)=>{
     const content = pinNode(s, i);
-    const marker = new AdvancedMarkerElement({
-      map, position:{lat:s.lat, lng:s.lng}, content, title:s.name,
-    });
-    content.style.cursor = 'pointer';
+    const marker = new AdvancedMarkerElement({ map, position:{lat:s.lat, lng:s.lng}, content, title:s.name });
+    content.style.cursor='pointer';
     content.addEventListener('click', ()=> select(i, true));
     markersByIndex[i] = marker;
     bounds.extend({lat:s.lat, lng:s.lng});
   });
-  if(STARTUPS.length){ map.fitBounds(bounds, 90); }
-
-  document.getElementById('count').innerHTML = `<b>${STARTUPS.length}</b> startups référencées`;
+  if(STARTUPS.length){ map.fitBounds(bounds, 80); }
 }
 
-/* ---------- Panneau de détails ---------- */
-const panel  = document.getElementById('panel');
+/* ---------- Panneau détail ---------- */
+const panel = document.getElementById('panel');
 let activeIndex = -1;
 
 function setActivePin(i){
   document.querySelectorAll('.pin').forEach(p=>p.classList.remove('is-active'));
-  if(i>-1){ const el = document.querySelector('.pin[data-i="'+i+'"]'); if(el) el.classList.add('is-active'); }
+  if(i>-1){ const el=document.querySelector('.pin[data-i="'+i+'"]'); if(el) el.classList.add('is-active'); }
 }
 function openPanel(s){
-  const holder = document.getElementById('pLogo');   // conteneur stable : on vide + on remplit
-  holder.innerHTML = '';
-  holder.appendChild(logoNode(s, 'p-logo'));
+  const holder = document.getElementById('pLogo');
+  holder.innerHTML=''; holder.appendChild(logoNode(s,'p-logo'));
   document.getElementById('pName').textContent   = s.name;
   document.getElementById('pSector').textContent = s.sector || '—';
   const host = s.url.replace(/^https?:\/\//,'').replace(/\/$/,'');
@@ -283,72 +311,85 @@ function openPanel(s){
   document.getElementById('pCta').href           = s.url;
   panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
 }
-function closePanel(){
-  panel.classList.remove('open'); panel.setAttribute('aria-hidden','true');
-  setActivePin(-1);
-  activeIndex = -1;
-}
+function closePanel(){ panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); setActivePin(-1); activeIndex=-1; }
 document.getElementById('pClose').addEventListener('click', closePanel);
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePanel(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closePanel(); closeModal(); }});
 
-/* Sélection d'une startup (marqueur ou recherche) */
 function select(i, fromMarker){
-  // déjà ouverte sur cette startup -> rien à faire
-  if(i === activeIndex && panel.classList.contains('open')) return;
+  if(i===activeIndex && panel.classList.contains('open')) return;
   const s = STARTUPS[i];
-  const switching = panel.classList.contains('open') && activeIndex !== i;
-  activeIndex = i;
-  setActivePin(i);
-
+  const switching = panel.classList.contains('open') && activeIndex!==i;
+  activeIndex = i; setActivePin(i);
   const reveal = ()=>{
     openPanel(s);
     if(map){
       map.panTo({lat:s.lat, lng:s.lng});
-      if(map.getZoom() < 14) map.setZoom(15);
-      // décale la carte pour que le point ne passe pas sous le panneau (desktop)
-      if(window.innerWidth > 640){ setTimeout(()=> map.panBy(170, 0), 60); }
+      if(map.getZoom()<14) map.setZoom(15);
+      if(window.innerWidth>860){ setTimeout(()=> map.panBy(160,0), 60); }
     }
   };
-
-  if(switching){
-    panel.classList.remove('open');   // ferme la fiche précédente...
-    setTimeout(reveal, 200);          // ...puis ouvre la nouvelle
-  } else {
-    reveal();
-  }
-
-  if(!fromMarker){ closeResults(); document.getElementById('q').value = s.name; toggleClear(); }
+  if(switching){ panel.classList.remove('open'); setTimeout(reveal, 200); } else { reveal(); }
+  if(!fromMarker){ closeResults(); document.getElementById('q').value=s.name; toggleClear(); }
 }
 
 /* ---------- Recherche ---------- */
-const q = document.getElementById('q'), qClear = document.getElementById('qClear'), results = document.getElementById('results');
+const q=document.getElementById('q'), qClear=document.getElementById('qClear'), results=document.getElementById('results');
 function toggleClear(){ qClear.classList.toggle('show', q.value.length>0); }
 function closeResults(){ results.classList.remove('show'); results.innerHTML=''; }
 function searchList(term){
-  const t = term.trim().toLowerCase();
+  const t=term.trim().toLowerCase();
   return STARTUPS.map((s,i)=>({s,i})).filter(({s})=> s.name.toLowerCase().includes(t) || (s.sector||'').toLowerCase().includes(t));
 }
 function renderResults(list){
   if(!q.value.trim()){ closeResults(); return; }
-  results.innerHTML = '';
-  if(!list.length){ results.innerHTML = `<div class="no-result">Aucune startup trouvée.</div>`; results.classList.add('show'); return; }
+  results.innerHTML='';
+  if(!list.length){ results.innerHTML=`<div class="no-result">Aucune startup trouvée.</div>`; results.classList.add('show'); return; }
   list.forEach(({s,i})=>{
-    const row = document.createElement('div'); row.className='result'; row.dataset.i=i;
+    const row=document.createElement('div'); row.className='result'; row.dataset.i=i;
     row.appendChild(logoNode(s,'r-logo'));
-    const txt = document.createElement('div'); txt.className='r-txt';
-    txt.innerHTML = `<div class="r-name">${s.name}</div><div class="r-sector">${s.sector||''}</div>`;
+    const txt=document.createElement('div');
+    txt.innerHTML=`<div class="r-name">${s.name}</div><div class="r-sector">${s.sector||''}</div>`;
     row.appendChild(txt);
-    row.addEventListener('click', ()=> select(i, false));
+    row.addEventListener('click', ()=> select(i,false));
     results.appendChild(row);
   });
   results.classList.add('show');
 }
 q.addEventListener('input', ()=>{ toggleClear(); renderResults(searchList(q.value)); });
 q.addEventListener('focus', ()=>{ if(q.value.trim()) renderResults(searchList(q.value)); });
-q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const f=results.querySelector('.result'); if(f) select(+f.dataset.i, false); }});
+q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const f=results.querySelector('.result'); if(f) select(+f.dataset.i,false); }});
 qClear.addEventListener('click', ()=>{ q.value=''; toggleClear(); closeResults(); q.focus(); });
-document.addEventListener('click', e=>{ if(!e.target.closest('.search')) closeResults(); });
+document.addEventListener('click', e=>{ if(!e.target.closest('.sb-search')) closeResults(); });
 
+/* ---------- Modale « Ajouter mon entreprise » ---------- */
+const addModal=document.getElementById('addModal'), addForm=document.getElementById('addForm');
+function openModal(){ addModal.classList.add('open'); addModal.setAttribute('aria-hidden','false');
+  document.getElementById('addFormWrap').style.display=''; document.getElementById('addOk').classList.remove('show'); }
+function closeModal(){ addModal.classList.remove('open'); addModal.setAttribute('aria-hidden','true'); }
+document.getElementById('btnAdd').addEventListener('click', openModal);
+document.getElementById('addClose').addEventListener('click', closeModal);
+document.getElementById('addOkClose').addEventListener('click', closeModal);
+addModal.addEventListener('click', e=>{ if(e.target===addModal) closeModal(); });
+
+addForm.addEventListener('submit', e=>{
+  e.preventDefault();
+  const f=new FormData(addForm);
+  const subject=`Ajout à la carte des startups : ${f.get('name')}`;
+  const body=
+    `Nom de l'entreprise : ${f.get('name')}\n`+
+    `Secteur d'activité : ${f.get('sector')}\n`+
+    `Site web : ${f.get('url')}\n`+
+    `Adresse : ${f.get('address')}\n`+
+    `Logo : ${f.get('logo')||'—'}\n`+
+    `Email de contact : ${f.get('email')}\n`;
+  window.location.href=`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  document.getElementById('addFormWrap').style.display='none';
+  document.getElementById('addOk').classList.add('show');
+  addForm.reset();
+});
+
+/* ---------- Init ---------- */
+document.getElementById('countN').textContent = STARTUPS.length;
 init();
 </script>
 </body>
