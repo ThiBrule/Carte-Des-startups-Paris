@@ -237,6 +237,8 @@ const SAMPLE = [
 ];
 
 const PARIS = { lat:48.8566, lng:2.3522 };
+/* Limites de l'Île-de-France (la carte ne peut pas sortir de cette zone) */
+const IDF_BOUNDS = { north:49.28, south:48.10, west:1.40, east:3.60 };
 let STARTUPS = SAMPLE.slice();
 
 /* ---------- Utilitaires logo / initiales ---------- */
@@ -300,6 +302,8 @@ async function init(){
 
   map = new Map(document.getElementById('map'), {
     center: PARIS, zoom: 12, mapId: MAP_ID,
+    minZoom: 9,                                    // pas de dézoom au-delà de l'Île-de-France
+    restriction: { latLngBounds: IDF_BOUNDS, strictBounds: true }, // carte bornée à l'IDF
     mapTypeControl:false, streetViewControl:false, fullscreenControl:false,
     zoomControl:true, clickableIcons:false, gestureHandling:"greedy",
   });
