@@ -245,24 +245,16 @@ let STARTUPS = SAMPLE.slice();
 
 /* ---------- Utilitaires logo / initiales ---------- */
 function initials(name){ return String(name||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
-function domainOf(u){ const m=String(u||'').toLowerCase().match(/^(?:https?:\/\/)?(?:www\.)?([^\/?#]+)/); return m?m[1]:''; }
-function effectiveLogo(s){
-  // on ignore les anciennes URL Clearbit (service supprimé) et les favicons génériques ;
-  // un logo manuel valide (autre URL) est conservé.
-  const manual = s.logo && !/clearbit\.com/i.test(s.logo) && !/s2\/favicons/i.test(s.logo) ? s.logo : '';
-  if(manual) return manual;
-  const d = domainOf(s.url);
-  return d ? ('https://www.google.com/s2/favicons?sz=128&domain=' + encodeURIComponent(d)) : '';
-}
 function logoNode(s, cls){
-  const url = effectiveLogo(s);
+  // Source unique = colonne "lien du logo" du Google Sheet. Vide/erreur -> initiales.
+  const url = (s.logo && /^https?:\/\//i.test(s.logo)) ? s.logo : '';
   if(url){
     const img = document.createElement('img');
     img.className = cls; img.alt = s.name;
     img.loading = 'lazy'; img.decoding = 'async';   // ne charge le logo que si besoin
     const toInitials = ()=>{ const d=document.createElement('div'); d.className=(cls+' initials').trim(); d.textContent=initials(s.name); img.replaceWith(d); };
-    img.onerror = toInitials;                                   // icône introuvable -> initiales
-    img.onload  = ()=>{ if(img.naturalWidth && img.naturalWidth <= 16) toInitials(); }; // globe/placeholder minuscule -> initiales
+    img.onerror = toInitials;                                   // logo introuvable -> initiales
+    img.onload  = ()=>{ if(img.naturalWidth && img.naturalWidth <= 16) toInitials(); }; // placeholder minuscule -> initiales
     img.src = url;
     return img;
   }
