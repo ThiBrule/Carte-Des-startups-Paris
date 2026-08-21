@@ -17,6 +17,7 @@
  */
 
 var SHEET_NAME = ''; // '' = première feuille de l'onglet ; sinon mets le nom exact de l'onglet
+var PAPPERS_TOKEN = ''; // clé API Pappers (https://www.pappers.fr/api) — nécessaire pour checkPappers()
 
 function getSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -33,6 +34,17 @@ function ensureCoordCols_(sheet) {
   var headers = sheet.getRange(1, 1, 1, last).getValues()[0].map(norm_);
   if (headers.indexOf('lat') < 0) { last++; sheet.getRange(1, last).setValue('Lat'); }
   if (headers.indexOf('lng') < 0) { last++; sheet.getRange(1, last).setValue('Lng'); }
+}
+
+// crée la colonne d'en-tête `header` si elle n'existe pas ; renvoie son index (1-based)
+function ensureCol_(sheet, header) {
+  var n = norm_(header);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(norm_);
+  var idx = headers.indexOf(n);
+  if (idx >= 0) return idx + 1;
+  var col = sheet.getLastColumn() + 1;
+  sheet.getRange(1, col).setValue(header);
+  return col;
 }
 
 function cols_(sheet) {
@@ -166,6 +178,90 @@ function geocodeAll() {
     }
   }
   Logger.log('Géocodage : ' + done + ' ajoutées, ' + skipped + ' déjà présentes.');
+}
+
+/**
+ * SOLUTION A — Teste le site web de chaque entreprise (colonne « Statut site »).
+ * À LANCER depuis l'éditeur (▷ Exécuter). Reprend là où elle s'est arrêtée à chaque relance
+ * (ne re-teste pas les lignes déjà remplies). Pour tout re-tester, vide la colonne « Statut site ».
+ *   OK (200)      = site joignable
+ *   À vérifier (n)= répond mais code d'erreur n
+ *   Injoignable   = domaine mort / pas de réponse (fort signal de fermeture)
+ */
+function checkWebsites() {
+  var sheet = getSheet_(); var c = cols_(sheet);
+  if (c.site <= 0) throw new Error('Colonne "site web" introuvable.');
+  var statutCol = ensureCol_(sheet, 'Statut site');
+  var last = sheet.getLastRow(); if (last < 2) return;
+  var n = last - 1;
+  var sites = sheet.getRange(2, c.site, n, 1).getValues();
+  var stat  = sheet.getRange(2, statutCol, n, 1).getValues();
+  var names = c.entreprise > 0 ? sheet.getRange(2, c.entreprise, n, 1).getValues() : null;
+  var start = new Date().getTime(), done = 0;
+  for (var i = 0; i < n; i++) {
+    if (new Date().getTime() - start > 270000) break; // ~4 min 30
+    if (stat[i][0]) continue;                          // déjà testé
+    if (names && !names[i][0]) continue;               // ligne vide
+    var url = String(sites[i][0] || '').trim();
+    if (!url) { sheet.getRange(i + 2, statutCol).setValue('Pas de site'); continue; }
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    var res;
+    try {
+      var r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, validateHttpsCertificates: false });
+      var code = r.getResponseCode();
+      res = (code >= 200 && code < 400) ? 'OK (' + code + ')' : 'À vérifier (' + code + ')';
+    } catch (err) { res = 'Injoignable'; }
+    sheet.getRange(i + 2, statutCol).setValue(res);
+    done++;
+  }
+  Logger.log('checkWebsites : ' + done + ' sites testés.');
+}
+
+/**
+ * SOLUTION B — Vérifie l'état officiel via le registre (API Pappers) -> colonnes « Statut registre » + « SIREN ».
+ * Nécessite PAPPERS_TOKEN (en haut du script). Reprend là où elle s'est arrêtée à chaque relance.
+ * Rapprochement par nom + code postal (extrait de l'adresse) pour limiter les homonymes.
+ *   Active / CESSÉE (date) / Introuvable / Erreur
+ * ⚠️ Chaque ligne = 1 appel API Pappers (quota/coût selon ton offre). Le SIREN est écrit pour vérifier à la main.
+ */
+function checkPappers() {
+  if (!PAPPERS_TOKEN) throw new Error('Renseigne PAPPERS_TOKEN en haut du script (clé API Pappers).');
+  var sheet = getSheet_(); var c = cols_(sheet);
+  if (c.entreprise <= 0) throw new Error('Colonne "Nom de l\'entreprise" introuvable.');
+  var regCol   = ensureCol_(sheet, 'Statut registre');
+  var sirenCol = ensureCol_(sheet, 'SIREN');
+  var last = sheet.getLastRow(); if (last < 2) return;
+  var n = last - 1;
+  var names = sheet.getRange(2, c.entreprise, n, 1).getValues();
+  var adrs  = c.adresse > 0 ? sheet.getRange(2, c.adresse, n, 1).getValues() : null;
+  var reg   = sheet.getRange(2, regCol, n, 1).getValues();
+  var start = new Date().getTime(), done = 0;
+  for (var i = 0; i < n; i++) {
+    if (new Date().getTime() - start > 270000) break;
+    if (reg[i][0]) continue;
+    var name = String(names[i][0] || '').trim(); if (!name) continue;
+    var cp = ''; if (adrs) { var m = String(adrs[i][0] || '').match(/\b(\d{5})\b/); if (m) cp = m[1]; }
+    var url = 'https://api.pappers.fr/v2/recherche?q=' + encodeURIComponent(name) + '&par_page=1&api_token=' + encodeURIComponent(PAPPERS_TOKEN) + (cp ? ('&code_postal=' + cp) : '');
+    var statut = '', siren = '';
+    try {
+      var r = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      if (r.getResponseCode() === 200) {
+        var d = JSON.parse(r.getContentText());
+        var e = d && d.resultats && d.resultats[0];
+        if (e) {
+          siren = e.siren || e.siren_formate || '';
+          var cessee = (e.entreprise_cessee === true) || (e.etat_administratif === 'C') || (e.statut && /cess/i.test(e.statut));
+          statut = cessee ? ('CESSÉE' + (e.date_cessation ? (' (' + e.date_cessation + ')') : '')) : 'Active';
+        } else { statut = 'Introuvable'; }
+      } else if (r.getResponseCode() === 429) { statut = 'Quota atteint'; break; }
+      else { statut = 'Erreur API (' + r.getResponseCode() + ')'; }
+    } catch (err) { statut = 'Erreur'; }
+    sheet.getRange(i + 2, regCol).setValue(statut);
+    if (siren) sheet.getRange(i + 2, sirenCol).setValue("'" + siren);
+    done++;
+    Utilities.sleep(150);
+  }
+  Logger.log('checkPappers : ' + done + ' entreprises vérifiées.');
 }
 
 /** Le formulaire du site ajoute une entreprise (validation décochée par défaut). */
