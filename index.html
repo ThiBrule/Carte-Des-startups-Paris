@@ -71,6 +71,8 @@
     box-shadow:0 4px 12px rgba(17,17,17,.22);overflow:hidden;display:flex;align-items:center;justify-content:center;
     transition:transform .12s ease, border-color .12s ease}
   .pin .disc img{width:100%;height:100%;object-fit:contain;padding:5px}
+  .pin .disc.fill{padding:0}
+  .pin .disc.fill img{padding:0;object-fit:cover}
   .pin .disc .initials{font-family:var(--title);font-weight:700;font-size:16px;color:var(--ink)}
   .pin .tip{position:absolute;left:50%;bottom:-6px;width:12px;height:12px;background:#fff;border-right:3px solid var(--pink);
     border-bottom:3px solid var(--pink);transform:translateX(-50%) rotate(45deg)}
@@ -314,7 +316,7 @@ function logoNode(s, cls){
 }
 function pinNode(s, i){
   const wrap = document.createElement('div'); wrap.className='pin'; wrap.dataset.i=i;
-  const disc = document.createElement('div'); disc.className='disc'; disc.appendChild(logoNode(s,''));
+  const disc = document.createElement('div'); disc.className = 'disc' + (s.fill ? ' fill' : ''); disc.appendChild(logoNode(s,''));
   const tip  = document.createElement('div'); tip.className='tip';
   wrap.appendChild(disc); wrap.appendChild(tip);
   return wrap;

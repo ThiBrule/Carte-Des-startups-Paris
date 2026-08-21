@@ -50,6 +50,7 @@ function cols_(sheet) {
     secteur:    has('secteur'),
     logo:       has('logo'),
     validation: has('validat'),
+    fill:       has('plein'),   // colonne "Logo plein" (case à cocher)
     lat:        exact('lat'),
     lng:        exact('lng')
   };
@@ -125,6 +126,7 @@ function doGet(e) {
         sector: c.secteur > 0 ? r[c.secteur - 1] : '',
         url:    c.site    > 0 ? r[c.site - 1]    : '',
         logo:   c.logo    > 0 ? r[c.logo - 1]    : '',
+        fill:   c.fill    > 0 ? isTrue_(r[c.fill - 1]) : false,
         lat:    lat,
         lng:    lng
       });
