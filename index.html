@@ -67,14 +67,21 @@
 
   /* ---------- Marqueurs (logos) ---------- */
   .pin{position:relative;width:46px;height:46px;cursor:pointer;transform:translateY(50%)}
-  .pin .disc{width:46px;height:46px;border-radius:50%;background:#fff;border:3px solid var(--pink);
-    box-shadow:0 4px 12px rgba(17,17,17,.22);overflow:hidden;display:flex;align-items:center;justify-content:center;
-    transition:transform .12s ease, border-color .12s ease}
-  .pin .disc img{width:100%;height:100%;object-fit:contain;padding:5px}
-  .pin .disc.fill{padding:0}
+  .pin .disc{width:46px;height:46px;border-radius:50%;background:#fff;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 1px 2px rgba(17,17,17,.16), 0 6px 16px rgba(17,17,17,.18);
+    outline:1px solid rgba(17,17,17,.06);outline-offset:-1px;
+    transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease}
+  .pin .disc img{width:100%;height:100%;object-fit:contain;padding:6px}
   .pin .disc.fill img{padding:0;object-fit:cover}
   .pin .disc .initials{font-family:var(--title);font-weight:700;font-size:16px;color:var(--ink)}
-  .pin:hover .disc, .pin.is-active .disc{transform:scale(1.08);border-color:var(--ink)}
+  .pin:hover .disc{transform:scale(1.14);
+    box-shadow:0 2px 6px rgba(17,17,17,.18), 0 12px 28px rgba(17,17,17,.26), 0 0 0 4px rgba(229,144,161,.28)}
+  .pin.is-active .disc{transform:scale(1.14);
+    box-shadow:0 2px 6px rgba(17,17,17,.2), 0 12px 28px rgba(17,17,17,.28), 0 0 0 5px rgba(229,144,161,.55)}
+  .pin.is-active::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+    box-shadow:0 0 0 0 rgba(229,144,161,.5);animation:pinpulse 1.6s ease-out infinite}
+  @keyframes pinpulse{to{box-shadow:0 0 0 16px rgba(229,144,161,0)}}
 
   /* ---------- Panneau détail (droite) ---------- */
   .panel{position:absolute;z-index:7;top:0;right:0;height:100%;width:min(360px,90%);
