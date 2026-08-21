@@ -288,8 +288,9 @@ const SAMPLE = [
 ];
 
 const PARIS = { lat:48.8566, lng:2.3522 };
-/* Limites de l'Île-de-France (la carte ne peut pas sortir de cette zone) */
-const IDF_BOUNDS = { north:49.28, south:48.10, west:1.40, east:3.60 };
+/* Limites Paris + petite couronne (La Défense, Boulogne, Versailles, Montreuil, Vincennes, Créteil…)
+   -> la carte ne peut pas sortir de cette zone. Ajuste ces 4 valeurs pour élargir/resserrer. */
+const MAP_BOUNDS = { north:48.99, south:48.72, west:2.05, east:2.62 };
 let STARTUPS = SAMPLE.slice();
 
 /* ---------- Utilitaires logo / initiales ---------- */
@@ -370,8 +371,8 @@ async function init(){
 
   map = new Map(document.getElementById('map'), {
     center: PARIS, zoom: 12, mapId: MAP_ID,
-    minZoom: 9,                                    // pas de dézoom au-delà de l'Île-de-France
-    restriction: { latLngBounds: IDF_BOUNDS, strictBounds: true }, // carte bornée à l'IDF
+    minZoom: 11,                                   // pas de dézoom au-delà de la petite couronne
+    restriction: { latLngBounds: MAP_BOUNDS, strictBounds: true }, // carte bornée à Paris + petite couronne
     mapTypeControl:false, streetViewControl:false, fullscreenControl:false,
     zoomControl:true, clickableIcons:false, gestureHandling:"greedy",
   });
