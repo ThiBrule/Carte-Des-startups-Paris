@@ -342,10 +342,12 @@ async function loadStartups(){
   return Array.isArray(data) ? data : [];
 }
 
-/* Cache local : rend la carte instantanée au chargement (données de la dernière visite) */
+/* Cache local : rend la carte instantanée au chargement (données de la dernière visite).
+   On ne rappelle le Sheet que si le cache a plus de CACHE_TTL (sinon rechargement = instantané). */
 const CACHE_KEY = 'startups_cache_v1';
-function readCache(){ try{ const j=JSON.parse(localStorage.getItem(CACHE_KEY)); return Array.isArray(j)&&j.length?j:null; }catch(e){ return null; } }
-function writeCache(list){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(list)); }catch(e){} }
+const CACHE_TTL = 60000; // 60 s
+function readCache(){ try{ const j=JSON.parse(localStorage.getItem(CACHE_KEY)); return (j&&Array.isArray(j.data)&&j.data.length)?j:null; }catch(e){ return null; } }
+function writeCache(list){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({t:Date.now(), data:list})); }catch(e){} }
 
 /* ---------- Carte Google ---------- */
 function loadGoogleMaps(){
@@ -375,12 +377,17 @@ async function init(){
   });
 
   // 1) Affichage instantané depuis le cache local (si on a déjà visité)
-  const cached = DATA_ENDPOINT ? readCache() : null;
-  if(cached){ STARTUPS = cached; buildSectorMenu(); renderMarkers(true); }
-  // 2) Données fraîches depuis le Sheet (met à jour sans bloquer l'affichage)
-  await refresh(!cached);
-  // Rafraîchit quand on revient sur l'onglet (ex. après validation dans le Sheet)
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh(false); });
+  const cacheObj = DATA_ENDPOINT ? readCache() : null;
+  if(cacheObj){ STARTUPS = cacheObj.data; buildSectorMenu(); renderMarkers(true); }
+  // 2) On ne rappelle le Sheet QUE si le cache est absent ou périmé (> CACHE_TTL)
+  const stale = !cacheObj || (Date.now() - cacheObj.t) > CACHE_TTL;
+  if(stale){ await refresh(!cacheObj); }
+  // Rafraîchit au retour sur l'onglet, mais seulement si le cache est périmé
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) return;
+    const c = readCache();
+    if(!c || (Date.now() - c.t) > CACHE_TTL) refresh(false);
+  });
 }
 
 async function refresh(fit){
