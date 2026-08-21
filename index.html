@@ -409,7 +409,10 @@ function renderMarkers(fit){
     bounds.extend({lat, lng});
   });
   document.getElementById('countN').textContent = markers.length;
-  if(fit && markers.length){ map.fitBounds(bounds, 80); }
+  if(fit){
+    if(activeSectors.size>0 && markers.length){ map.fitBounds(bounds, 80); }  // filtre actif -> on cadre les résultats
+    else { map.setCenter(PARIS); map.setZoom(12); }                            // vue par défaut : centrée sur Paris
+  }
 }
 
 /* ---------- Filtre par secteur ---------- */
