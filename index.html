@@ -66,7 +66,7 @@
   .sb-foot b{color:var(--pink);font-size:15px}
 
   /* ---------- Marqueurs (logos) ---------- */
-  .pin{position:relative;width:46px;height:46px;cursor:pointer}
+  .pin{position:relative;width:46px;height:46px;cursor:pointer;transform:translateY(50%)}
   .pin .disc{width:46px;height:46px;border-radius:50%;background:#fff;border:3px solid var(--pink);
     box-shadow:0 4px 12px rgba(17,17,17,.22);overflow:hidden;display:flex;align-items:center;justify-content:center;
     transition:transform .12s ease, border-color .12s ease}
@@ -74,10 +74,7 @@
   .pin .disc.fill{padding:0}
   .pin .disc.fill img{padding:0;object-fit:cover}
   .pin .disc .initials{font-family:var(--title);font-weight:700;font-size:16px;color:var(--ink)}
-  .pin .tip{position:absolute;left:50%;bottom:-6px;width:12px;height:12px;background:#fff;border-right:3px solid var(--pink);
-    border-bottom:3px solid var(--pink);transform:translateX(-50%) rotate(45deg)}
   .pin:hover .disc, .pin.is-active .disc{transform:scale(1.08);border-color:var(--ink)}
-  .pin.is-active .tip{border-color:var(--ink)}
 
   /* ---------- Panneau détail (droite) ---------- */
   .panel{position:absolute;z-index:7;top:0;right:0;height:100%;width:min(360px,90%);
@@ -318,8 +315,7 @@ function logoNode(s, cls){
 function pinNode(s, i){
   const wrap = document.createElement('div'); wrap.className='pin'; wrap.dataset.i=i;
   const disc = document.createElement('div'); disc.className = 'disc' + (s.fill ? ' fill' : ''); disc.appendChild(logoNode(s,''));
-  const tip  = document.createElement('div'); tip.className='tip';
-  wrap.appendChild(disc); wrap.appendChild(tip);
+  wrap.appendChild(disc);
   return wrap;
 }
 
